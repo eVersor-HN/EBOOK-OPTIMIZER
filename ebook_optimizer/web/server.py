@@ -38,10 +38,18 @@ _lock = threading.Lock()
 
 # ----------------------------------------------------------------- Daten ---
 
-def known_ext():
+# Siehe cli.SCAN_SKIP_EXT: beim Durchsuchen keine Allerweltsdateien.
+SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
+                 '.md', '.markdown', '.textile', '.opf', '.recipe',
+                 '.zip', '.rar', '.shtm', '.shtml'}
+
+
+def known_ext(scanning=False):
     ext = set(NATIVE_EXT)
     if conv.available():
         ext |= {'.' + f for f in conv.input_formats()}
+    if scanning:
+        ext -= SCAN_SKIP_EXT
     return ext
 
 
@@ -85,7 +93,7 @@ def list_dir(path):
         parent = ''
 
     dirs, files = [], []
-    exts = known_ext()
+    exts = known_ext(scanning=True)
     try:
         entries = sorted(os.scandir(path), key=lambda e: e.name.lower())
     except PermissionError:
@@ -106,7 +114,7 @@ def list_dir(path):
 
 def scan(paths, recursive):
     """Sammelt alle verarbeitbaren Dateien unter den angegebenen Pfaden."""
-    exts = known_ext()
+    exts = known_ext(scanning=True)
     found = []
     for p in paths:
         if os.path.isfile(p):

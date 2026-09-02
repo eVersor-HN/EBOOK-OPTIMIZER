@@ -93,7 +93,7 @@ notes and in `SHA256SUMS.txt` in this repository — all three must match byte-f
 **`ebook-optimizer-0.2.0.zip` — SHA-256:**
 
 ```
-b572c23adaaee07461e8b9ed5781aae180c7d0bc8296cb0b0b0169a8c5185665
+2547b0bfa472474b151ffb762814990f74559d7c445c2bb55efce4b930631501
 ```
 
 ```powershell

@@ -26,15 +26,26 @@ EPUB_EXT = {'.epub', '.kepub'}
 NATIVE_EXT = EPUB_EXT | COMIC_EXT
 
 
-def all_ext():
+# Calibre liest auch .txt, .html und Konsorten. Beim Durchsuchen eines
+# Ordners waere das ein Fallstrick: jede README und jede Notiz wuerde
+# mitkonvertiert. Direkt benannte Dateien bleiben erlaubt.
+SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
+                 '.md', '.markdown', '.textile', '.opf', '.recipe',
+                 '.zip', '.rar', '.shtm', '.shtml'}
+
+
+def all_ext(scanning=False):
     ext = set(NATIVE_EXT)
     if conv.available():
         ext |= {'.' + f for f in conv.input_formats()}
+    if scanning:
+        ext -= SCAN_SKIP_EXT
     return ext
 
 
 def collect(paths, recursive):
-    exts = all_ext()
+    exts = all_ext(scanning=True)
+    named = all_ext()
     out = []
     for p in paths:
         if os.path.isdir(p):
@@ -49,7 +60,11 @@ def collect(paths, recursive):
                     if os.path.isfile(full) and ext_of(fn) in exts:
                         out.append(full)
         elif os.path.isfile(p):
-            out.append(p)
+            if ext_of(p) in named:
+                out.append(p)
+            else:
+                print('Uebersprungen (kein bekanntes Format): %s' % p,
+                      file=sys.stderr)
         else:
             print('Nicht gefunden: %s' % p, file=sys.stderr)
     return out

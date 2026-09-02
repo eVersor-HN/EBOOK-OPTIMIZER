@@ -307,6 +307,7 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | `-t, --to` | Output format — `epub`, `kepub`, `azw3`, `mobi`, `pdf`, `cbz`, … |
 | `-q, --quality` | Pin a fixed JPEG quality and switch the per-image measurement off |
 | `-r, --recursive` | Walk sub-folders; with `-o` the output mirrors the source tree |
+| `--only-ext` | Limit a folder scan to these extensions, e.g. `--only-ext epub` |
 | `--include-ext` | Also scan extensions skipped by default, e.g. `--include-ext txt` |
 | `-o, --out-dir` | Output folder (default: `optimiert` beside the source) |
 | `-j, --jobs` | Parallel workers (default: core count, capped at 8) |

@@ -59,12 +59,14 @@ def is_calibre_library(path):
     return os.path.isfile(os.path.join(path, 'metadata.db'))
 
 
-def collect(paths, recursive, out_dir=None, include=()):
+def collect(paths, recursive, out_dir=None, include=(), only=()):
     """Returns (path, root) pairs; root is the scanned folder the file
     came from, or None for a file named explicitly. The root lets the
     output mirror the folder structure instead of flattening thousands
     of files into one directory."""
     exts = all_ext(scanning=True, include=include)
+    if only:
+        exts &= {'.' + e.lstrip('.').lower() for e in only}
     named = all_ext()
     skip_dir = os.path.normcase(os.path.abspath(out_dir)) if out_dir else None
     out = []
@@ -152,6 +154,9 @@ def build_parser():
                          'measurement off')
     ap.add_argument('-r', '--recursive', action='store_true',
                     help='walk sub-folders')
+    ap.add_argument('--only-ext', metavar='EXT[,EXT]', default='',
+                    help='limit a folder scan to these extensions, e.g. '
+                         '--only-ext epub to touch nothing else')
     ap.add_argument('--include-ext', metavar='EXT[,EXT]', default='',
                     help='also pick these extensions up when scanning '
                          'folders. txt, html and friends are skipped by '
@@ -288,8 +293,9 @@ def main(argv=None):
             return 2
 
     include = [e for e in args.include_ext.split(',') if e.strip()]
+    only = [e for e in args.only_ext.split(',') if e.strip()]
     files = collect(args.paths, args.recursive, args.out_dir,
-                    include=include)
+                    include=include, only=only)
     if not files:
         print('No matching files found.')
         return 1

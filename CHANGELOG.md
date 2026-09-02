@@ -4,6 +4,15 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.6 · 2026-09-02
+
+- **Calibre libraries are protected from direct scanning.** Pointing the folder scanner at a
+  calibre library and rewriting its files behind calibre's back would desynchronise
+  `metadata.db` and corrupt the library. Any folder containing `metadata.db` is now skipped with
+  an explanation - in the command line, in the web interface, and when nested inside a larger
+  scanned tree. Those books belong to the plugin inside calibre, or can be exported first via
+  Save to disk.
+
 ## 0.4.5 · 2026-09-02
 
 - **The toolbar button has an icon now** - the teal EO tile from the web interface - instead of

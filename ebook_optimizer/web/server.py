@@ -182,8 +182,17 @@ def pick(mode='dir', initial=''):
     return [os.path.normpath(x) for x in out.splitlines() if x.strip()]
 
 
+def _is_calibre_library(path):
+    return os.path.isfile(os.path.join(path, 'metadata.db'))
+
+
 def scan(paths, recursive):
-    """Collect every processable file below the given paths."""
+    """Collect every processable file below the given paths.
+
+    Calibre libraries are refused: editing their files behind calibre's
+    back desynchronises metadata.db. Those books belong to the plugin
+    inside calibre.
+    """
     exts = known_ext(scanning=True)
     found = []
     for p in paths:
@@ -191,8 +200,18 @@ def scan(paths, recursive):
             if ext_of(p) in exts:
                 found.append(p)
         elif os.path.isdir(p):
+            if _is_calibre_library(p):
+                raise ValueError(
+                    'This is a calibre library (it contains metadata.db). '
+                    'Editing its files directly would desynchronise '
+                    "calibre's database. Optimise these books inside "
+                    'calibre with the plugin instead, or export them '
+                    'first via Save to disk.')
             if recursive:
                 for root, dirs, files in os.walk(p):
+                    if _is_calibre_library(root):
+                        dirs[:] = []
+                        continue
                     dirs[:] = [d for d in dirs
                                if d.lower() not in OUTPUT_DIR_NAMES]
                     for fn in sorted(files):

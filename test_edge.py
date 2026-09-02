@@ -184,6 +184,21 @@ if have_7z:
 else:
     print('  CB7: no 7z-capable unpacker on this machine, skipped')
 
+# 12c A calibre library must never be swept up: editing its files behind
+#     calibre's back desynchronises metadata.db
+from ebook_optimizer.cli import collect  # noqa: E402
+lib = os.path.join(tmp, 'Calibre Library')
+os.makedirs(os.path.join(lib, 'Author', 'Book'), exist_ok=True)
+open(os.path.join(lib, 'metadata.db'), 'wb').write(b'sqlite fake')
+with zipfile.ZipFile(os.path.join(lib, 'Author', 'Book', 'b.epub'), 'w') as z:
+    z.writestr('mimetype', 'application/epub+zip')
+found = collect([lib], recursive=True)
+check('a calibre library is skipped when scanning', found == [], str(found))
+found = collect([os.path.dirname(lib)], recursive=True)
+check('a library nested in a scanned tree is skipped too',
+      not any('Calibre Library' in f for f in found),
+      str([f for f in found if 'Calibre Library' in f]))
+
 # 13 CBR without an unpacker: a clear error, not a crash
 cbr = os.path.join(tmp, 'x.cbr')
 with open(cbr, 'wb') as f:

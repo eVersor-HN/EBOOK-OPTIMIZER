@@ -47,6 +47,17 @@ def all_ext(scanning=False):
     return ext
 
 
+CALIBRE_LIBRARY_WARNING = (
+    "is a calibre library (it contains metadata.db). Editing the "
+    "files behind calibre's back desynchronises its database, so "
+    "this folder is skipped. Optimise these books inside calibre "
+    "with the plugin, or export them first via Save to disk.")
+
+
+def is_calibre_library(path):
+    return os.path.isfile(os.path.join(path, 'metadata.db'))
+
+
 def collect(paths, recursive, out_dir=None):
     exts = all_ext(scanning=True)
     named = all_ext()
@@ -54,8 +65,18 @@ def collect(paths, recursive, out_dir=None):
     out = []
     for p in paths:
         if os.path.isdir(p):
+            if is_calibre_library(p):
+                print('Skipped: %s %s' % (p, CALIBRE_LIBRARY_WARNING),
+                      file=sys.stderr)
+                continue
             if recursive:
                 for root, dirs, files in os.walk(p):
+                    if is_calibre_library(root):
+                        print('Skipped: %s %s'
+                              % (root, CALIBRE_LIBRARY_WARNING),
+                              file=sys.stderr)
+                        dirs[:] = []
+                        continue
                     dirs[:] = [
                         d for d in dirs
                         if d.lower() not in OUTPUT_DIR_NAMES

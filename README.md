@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.5.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.6.zip` — SHA-256:**
 
 ```
-b70c8943b457eba64832edf934a50acef7f00247695a55f6084ab9cace83c44b
+8868ad0f1721965c0f67d2f2c058e0cc86329badf14d922f97e0e077e3fc329f
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.5.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.6.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.5.zip    sha256sum EBOOK-OPTIMIZER-0.4.5.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.6.zip    sha256sum EBOOK-OPTIMIZER-0.4.6.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -346,6 +346,9 @@ Worth knowing before you point this at a library of several thousand files:
 - **Progressive JPEG is on by default** and is worth about 6 %. Very old e-ink devices can
   struggle to decode it. Check one file on your device after the first run; if something fails to
   display, use `--no-progressive`.
+- **Calibre libraries are refused by the folder scanner.** Rewriting files inside a calibre
+  library desynchronises its `metadata.db`. Use the plugin inside calibre for those books, or
+  export them first via *Save to disk*.
 - **`--in-place` keeps numbered `.bak` files** and never overwrites an existing one, but that is
   not a substitute for a real backup.
 - **The Calibre plugin loads and registers in a real Calibre** (verified on Calibre 9.14,

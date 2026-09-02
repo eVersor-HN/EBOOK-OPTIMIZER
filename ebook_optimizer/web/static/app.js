@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 // not have. The server serves these files straight from disk, so an
 // already running process can hand out a new page while its own Python
 // is still the old one - which looks exactly like a dead button.
-const NEEDS_VERSION = '0.4.5';
+const NEEDS_VERSION = '0.4.6';
 
 const STATE = {
   cwd: '',

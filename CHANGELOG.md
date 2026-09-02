@@ -4,6 +4,15 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.3.2 · 2026-09-02
+
+- **Choose folder** and **Choose files** buttons now open your operating system's own dialog. The
+  button next to the path field used to be labelled "Open", which read like it should open a file
+  dialog while it only jumped to whatever was already typed in the field - so with an empty field
+  it appeared to do nothing at all. It is now labelled "Show", and the real picker sits above it.
+- "Open folder" after a run now reports it when the folder is gone instead of silently claiming
+  success.
+
 ## 0.3.1 · 2026-09-02
 
 - A second recursive run no longer picks up its own output. The default `optimized` folder sits

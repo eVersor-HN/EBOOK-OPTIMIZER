@@ -207,6 +207,7 @@ input[type=range]::-moz-range-thumb {
 output { font-family: var(--mono); color: var(--accent); font-weight: 600; }
 
 .pathrow { display: flex; gap: 8px; }
+.btn-pick { flex: 1; font-weight: 600; }
 .pathrow input { flex: 1; }
 
 .checks { display: flex; flex-direction: column; gap: 9px; }

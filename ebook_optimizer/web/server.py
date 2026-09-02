@@ -10,6 +10,7 @@ import json
 import mimetypes
 import os
 import string
+import subprocess
 import sys
 import threading
 import time
@@ -124,6 +125,58 @@ def list_dir(path):
     return {'path': path, 'parent': parent, 'sep': os.sep,
             'rootLabel': 'Drives' if sys.platform == 'win32' else 'Home',
             'dirs': dirs, 'files': files}
+
+
+_PICK_CODE = """
+import sys
+import tkinter
+import tkinter.filedialog as fd
+
+mode, initial = sys.argv[1], sys.argv[2] or None
+root = tkinter.Tk()
+root.withdraw()
+root.attributes('-topmost', True)
+if mode == 'files':
+    picked = fd.askopenfilenames(initialdir=initial,
+                                 title='Select e-books or comics')
+    out = chr(10).join(picked or ())
+else:
+    out = fd.askdirectory(initialdir=initial, title='Select a folder') or ''
+sys.stdout.write(out)
+"""
+
+
+def pick(mode='dir', initial=''):
+    """Open the operating system's own file or folder dialog.
+
+    A web page cannot ask for a path on the machine the server runs on,
+    so the dialog is opened here instead. It runs in a short-lived child
+    process on purpose: Tk wants the main thread, and a crashing dialog
+    must not be able to take the server with it.
+    """
+    kw = {}
+    if sys.platform == 'win32':
+        kw['creationflags'] = 0x08000000       # CREATE_NO_WINDOW
+    try:
+        proc = subprocess.run(
+            [sys.executable, '-c', _PICK_CODE, mode, initial or ''],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=600, **kw)
+    except FileNotFoundError:
+        raise ValueError('Could not start the dialog: Python not found.')
+    except subprocess.TimeoutExpired:
+        raise ValueError('The dialog was left open too long.')
+    if proc.returncode != 0:
+        err = (proc.stderr or b'').decode('utf-8', 'replace')
+        if 'tkinter' in err.lower():
+            raise ValueError(
+                'No file dialog available: this Python was built without '
+                'tkinter. Type the path into the field instead.')
+        raise ValueError('The dialog could not be opened.')
+    out = (proc.stdout or b'').decode('utf-8', 'replace').strip()
+    if not out:
+        return []                     # cancelled
+    return [os.path.normpath(x) for x in out.splitlines() if x.strip()]
 
 
 def scan(paths, recursive):
@@ -316,15 +369,20 @@ class Handler(BaseHTTPRequestHandler):
                 if job:
                     job['cancel'] = True
                 return self._json({'ok': True})
+            if p == '/api/pick':
+                picked = pick(data.get('mode', 'dir'), data.get('initial'))
+                return self._json({'paths': picked})
             if p == '/api/reveal':
                 d = data.get('path') or ''
-                if os.path.isdir(d):
-                    if sys.platform == 'win32':
-                        os.startfile(d)                     # noqa: S606
-                    elif sys.platform == 'darwin':
-                        os.system('open %s' % json.dumps(d))
-                    else:
-                        os.system('xdg-open %s' % json.dumps(d))
+                if not os.path.isdir(d):
+                    return self._json(
+                        {'error': 'Folder no longer exists: %s' % d}, 404)
+                if sys.platform == 'win32':
+                    os.startfile(d)                         # noqa: S606
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', d])
+                else:
+                    subprocess.Popen(['xdg-open', d])
                 return self._json({'ok': True})
             self.send_error(404)
         except Exception as e:

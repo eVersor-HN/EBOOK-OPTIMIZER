@@ -362,6 +362,39 @@ function showTotals(j) {
 
 /* ------------------------------------------------------------- Wiring */
 
+async function pickWith(mode) {
+  const btn = mode === 'files' ? $('pickFiles') : $('pickFolder');
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Waiting for the dialog...';
+  try {
+    const d = await api('/api/pick', { mode, initial: STATE.cwd });
+    if (!d.paths.length) return;                 // cancelled
+    if (mode === 'files') {
+      const known = new Set(STATE.selection.map((f) => f.path));
+      const found = await api('/api/scan', { paths: d.paths,
+                                             recursive: false });
+      found.files.forEach((f) => {
+        if (!known.has(f.path)) STATE.selection.push(f);
+      });
+      renderSelection();
+      if (d.paths.length) {
+        await browse(d.paths[0].replace(/[\/][^\/]+$/, ''));
+      }
+    } else {
+      await browse(d.paths[0]);
+      await useFolder();
+    }
+  } catch (e) {
+    $('runInfo').textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+$('pickFolder').onclick = () => pickWith('dir');
+$('pickFiles').onclick = () => pickWith('files');
 $('goPath').onclick = () => browse($('pathInput').value.trim());
 $('pathInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') browse($('pathInput').value.trim());
@@ -382,7 +415,13 @@ $('quality').oninput = (e) => {
 $('noQuantize').onchange = clearPreset;
 $('runBtn').onclick = run;
 $('cancelBtn').onclick = () => api('/api/cancel', { id: STATE.jobId });
-$('openOut').onclick = () => api('/api/reveal', { path: STATE.lastOutDir });
+$('openOut').onclick = async () => {
+  try {
+    await api('/api/reveal', { path: STATE.lastOutDir });
+  } catch (e) {
+    $('statusLine').textContent = e.message;
+  }
+};
 
 loadStatus()
   .then(() => browse(''))

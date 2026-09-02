@@ -100,20 +100,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.3.1.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.3.2.zip` — SHA-256:**
 
 ```
-acde0f70fa69bdd987dd5cd9867717b3dc04169fdca77f657436723d8caa167f
+9ac696e57a631309f610615d3460d3678fd3796f8c935f4a4bee6d2ec79ebbe2
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.3.1.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.3.2.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.3.1.zip    sha256sum EBOOK-OPTIMIZER-0.3.1.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.3.2.zip    sha256sum EBOOK-OPTIMIZER-0.3.2.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -129,7 +129,8 @@ the genuine build.
 python -m ebook_optimizer.web
 ```
 
-Opens `http://127.0.0.1:8756`. Four steps and then one button: **what to convert** — a whole
+Opens `http://127.0.0.1:8756`. **Choose folder** and **Choose files** open your system's own
+dialog, or you can type a path. Four steps and then one button: **what to convert** — a whole
 folder, recursively if you want, or individual files — **which device**, **how hard to compress**,
 **which output format**, then Go. Progress and per-file results appear as they arrive. The
 interface is light by default and follows your system's dark mode. The server binds to localhost

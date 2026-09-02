@@ -83,7 +83,7 @@ def target_path(src, args, fmt):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(
-        prog='ebook-optimizer',
+        prog='EBOOK-OPTIMIZER',
         description='EPUB/Comic-Optimierung fuer E-Ink-Reader')
     ap.add_argument('paths', nargs='*', help='Dateien oder Ordner')
     ap.add_argument('-p', '--profile', default=DEFAULT_PROFILE,

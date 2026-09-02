@@ -93,7 +93,7 @@ def _run(book_ids, db, opts, log, abort, notifications):
 
 
 class EbookOptimizerAction(InterfaceAction):
-    name = 'Ebook Optimizer'
+    name = 'EBOOK-OPTIMIZER'
     action_spec = ('E-Ink optimieren', None,
                    'Markierte Buecher fuer den E-Reader verkleinern', None)
     action_type = 'current'
@@ -139,4 +139,4 @@ class EbookOptimizerAction(InterfaceAction):
                   '\n'.join(lines)))
         self.gui.library_view.model().refresh_ids(
             [], current_row=self.gui.library_view.currentIndex().row())
-        info_dialog(self.gui, 'Ebook Optimizer', msg, show=True)
+        info_dialog(self.gui, 'EBOOK-OPTIMIZER', msg, show=True)

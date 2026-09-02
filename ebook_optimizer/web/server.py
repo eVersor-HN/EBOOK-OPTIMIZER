@@ -1,4 +1,4 @@
-"""Lokale Weboberflaeche fuer den Ebook Optimizer.
+"""Lokale Weboberflaeche fuer EBOOK-OPTIMIZER.
 
 Laeuft ausschliesslich auf der eigenen Maschine (127.0.0.1) und braucht
 nichts ausser der Standardbibliothek. Der Browser dient nur als Anzeige;
@@ -322,7 +322,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host='127.0.0.1', port=8756, open_browser=True):
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = 'http://%s:%d/' % (host, port)
-    print('Ebook Optimizer laeuft auf %s' % url)
+    print('EBOOK-OPTIMIZER laeuft auf %s' % url)
     print('Zum Beenden: Strg+C')
     if not conv.available():
         print('')

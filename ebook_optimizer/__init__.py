@@ -1,4 +1,4 @@
-"""Ebook Optimizer - E-Books und Comics fuer E-Reader verkleinern.
+"""EBOOK-OPTIMIZER - E-Books und Comics fuer E-Reader verkleinern.
 
 Doppelrolle:
   * als Calibre-Plugin (Klasse EbookOptimizerPlugin unten)
@@ -19,7 +19,7 @@ except Exception:                                    # kein Calibre vorhanden
 if InterfaceActionBase is not None:
 
     class EbookOptimizerPlugin(InterfaceActionBase):
-        name = 'Ebook Optimizer'
+        name = 'EBOOK-OPTIMIZER'
         description = ('Verkleinert E-Books und Comics fuer E-Reader: '
                        'Bilder auf Panelaufloesung, Graustufen, Schriften '
                        'entfernen, CBR nach CBZ.')

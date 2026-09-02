@@ -1,4 +1,4 @@
-"""Lokale Weboberflaeche fuer den Ebook Optimizer."""
+"""Lokale Weboberflaeche fuer EBOOK-OPTIMIZER."""
 
 from .server import serve
 

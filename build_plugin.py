@@ -10,7 +10,7 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'ebook_optimizer')
-OUT = os.path.join(HERE, 'dist', 'ebook-optimizer-calibre-plugin.zip')
+OUT = os.path.join(HERE, 'dist', 'EBOOK-OPTIMIZER-calibre-plugin.zip')
 
 SKIP_DIRS = {'__pycache__', '.git'}
 SKIP_EXT = {'.pyc', '.pyo'}

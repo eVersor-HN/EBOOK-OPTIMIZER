@@ -1,5 +1,5 @@
 @echo off
-REM Ebook Optimizer - lokale Oberflaeche starten
+REM EBOOK-OPTIMIZER - lokale Oberflaeche starten
 cd /d "%~dp0"
 python -m ebook_optimizer.web %*
 if errorlevel 1 (

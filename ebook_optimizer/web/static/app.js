@@ -1,4 +1,4 @@
-/* Ebook Optimizer - Oberflaechenlogik.
+/* EBOOK-OPTIMIZER - Oberflaechenlogik.
    Kein Framework: der Server liefert JSON, hier wird es angezeigt. */
 
 'use strict';

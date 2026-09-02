@@ -1,0 +1,21 @@
+# Build- und Laufzeitartefakte
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+
+# Erzeugte Testdaten und heruntergeladenes Beispielmaterial
+testdata/
+samples/
+out/
+optimiert/
+*.ebook_opt_tmp*
+
+# Werkzeuge
+.venv/
+venv/
+.idea/
+.vscode/
+*.bak
+*.bak.[0-9]*

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ebook Optimizer</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">EO</span>
+    <div>
+      <h1>Ebook&nbsp;Optimizer</h1>
+      <p class="sub">E-Books und Comics verkleinern &amp; konvertieren</p>
+    </div>
+  </div>
+  <div class="sysinfo" id="sysinfo"></div>
+</header>
+
+<div id="calibreWarn" class="banner banner-warn" hidden>
+  <strong>Calibre nicht gefunden.</strong>
+  <span>Ohne Calibre sind nur <code>EPUB</code>, <code>KEPUB</code> und
+  <code>CBZ</code> möglich. Für alle weiteren Formate Calibre installieren:
+  <a href="https://calibre-ebook.com" target="_blank" rel="noopener">calibre-ebook.com</a>
+  — danach diese Seite neu laden.</span>
+</div>
+
+<main>
+
+  <!-- 1 QUELLE -->
+  <section class="panel">
+    <div class="phead"><span class="num">01</span><h2>Quelle</h2></div>
+    <div class="pbody">
+      <p class="hint">Wähle einen ganzen Ordner oder einzelne Dateien.
+        Unterordner lassen sich mitnehmen.</p>
+
+      <div class="pathrow">
+        <input type="text" id="pathInput" spellcheck="false"
+               placeholder="Pfad eingeben oder unten auswählen …">
+        <button class="btn" id="goPath">Öffnen</button>
+      </div>
+
+      <div class="browser">
+        <div class="crumbs" id="crumbs"></div>
+        <ul class="filelist" id="dirList"></ul>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="recursive" checked>
+        <span>Unterordner einbeziehen</span>
+      </label>
+
+      <div class="actions">
+        <button class="btn btn-ghost" id="useFolder">Diesen Ordner nehmen</button>
+        <button class="btn btn-ghost" id="clearSel">Auswahl leeren</button>
+      </div>
+
+      <div class="selbox" id="selBox" hidden>
+        <div class="selhead">
+          <span id="selCount">0 Dateien</span>
+          <span id="selSize" class="dim"></span>
+        </div>
+        <ul id="selList" class="sellist"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 ZIEL -->
+  <section class="panel">
+    <div class="phead"><span class="num">02</span><h2>Ziel</h2></div>
+    <div class="pbody grid2">
+      <label class="field">
+        <span>Gerät</span>
+        <select id="profile"></select>
+      </label>
+
+      <label class="field">
+        <span>Ausgabeformat</span>
+        <select id="format"></select>
+      </label>
+
+      <label class="field wide">
+        <span>Zielordner <em class="dim">leer = Unterordner „optimiert“ neben dem Original</em></span>
+        <input type="text" id="outDir" spellcheck="false" placeholder="(automatisch)">
+      </label>
+    </div>
+  </section>
+
+  <!-- 3 EINSTELLUNGEN -->
+  <section class="panel">
+    <div class="phead">
+      <span class="num">03</span><h2>Einstellungen</h2>
+      <button class="btn btn-tiny btn-ghost" id="toggleAdv">Erweitert</button>
+    </div>
+    <div class="pbody">
+      <label class="field">
+        <span>JPEG-Qualität <output id="qOut">80</output></span>
+        <input type="range" id="quality" min="40" max="95" value="80">
+      </label>
+
+      <div id="adv" hidden>
+        <div class="grid2">
+          <label class="field">
+            <span>Bildformat</span>
+            <select id="pngMode">
+              <option value="auto" selected>automatisch – kleineres gewinnt</option>
+              <option value="keep">Format beibehalten</option>
+              <option value="jpeg">immer JPEG</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Parallele Prozesse</span>
+            <input type="number" id="jobs" min="1" max="32" value="8">
+          </label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="keepColor">
+            <span>Farbe behalten <em class="dim">E-Ink zeigt ohnehin Graustufen</em></span></label>
+          <label class="check"><input type="checkbox" id="keepFonts">
+            <span>Eingebettete Schriften behalten</span></label>
+          <label class="check"><input type="checkbox" id="noQuantize">
+            <span>PNG nicht auf 16 Graustufen reduzieren</span></label>
+          <label class="check"><input type="checkbox" id="manga">
+            <span>Comics: Leserichtung rechts-nach-links</span></label>
+          <label class="check"><input type="checkbox" id="noProgressive">
+            <span>Baseline-JPEG <em class="dim">nur nötig, wenn ein sehr altes Gerät streikt</em></span></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- START -->
+  <section class="runbar">
+    <button class="btn btn-primary" id="runBtn" disabled>Starten</button>
+    <button class="btn btn-danger" id="cancelBtn" hidden>Abbrechen</button>
+    <span class="runinfo" id="runInfo">Zuerst Dateien auswählen</span>
+  </section>
+
+  <!-- ERGEBNIS -->
+  <section class="panel" id="resultPanel" hidden>
+    <div class="phead"><span class="num">04</span><h2>Ergebnis</h2>
+      <button class="btn btn-tiny btn-ghost" id="openOut" hidden>Ordner öffnen</button>
+    </div>
+    <div class="pbody">
+      <div class="progwrap"><div class="prog" id="prog"></div></div>
+      <p class="status" id="statusLine"></p>
+      <div class="totals" id="totals" hidden></div>
+      <ul class="results" id="results"></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>Läuft lokal auf deinem Rechner · keine Daten verlassen die Maschine</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

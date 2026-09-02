@@ -87,8 +87,14 @@ interface are stateless.
 
 ## ✅ Verify authenticity (SHA-256)
 
-The release asset is the only file you need to check. The authoritative value appears in the
-release notes and in `SHA256SUMS.txt` in this repository — all three must match byte-for-byte.
+The release asset is the only file you need to check. The same value appears in the release
+notes and in `SHA256SUMS.txt` in this repository — all three must match byte-for-byte.
+
+**`ebook-optimizer-0.2.0.zip` — SHA-256:**
+
+```
+b572c23adaaee07461e8b9ed5781aae180c7d0bc8296cb0b0b0169a8c5185665
+```
 
 ```powershell
 Get-FileHash .\ebook-optimizer-0.2.0.zip -Algorithm SHA256

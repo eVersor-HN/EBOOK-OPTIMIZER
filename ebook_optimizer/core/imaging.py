@@ -10,8 +10,8 @@ Public API:
 import io
 from dataclasses import dataclass
 
-RASTER_EXT = {'.jpg', '.jpeg', '.jpe', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff'}
-JPEG_FMTS = {'JPEG', 'JPG'}
+RASTER_EXT = {'.jpg', '.jpeg', '.jpe', '.png', '.gif', '.webp', '.bmp',
+              '.tif', '.tiff'}
 
 
 @dataclass
@@ -193,7 +193,12 @@ def _to_levels(im):
 
 
 def visible_error(ref_levels, decoded):
-    """Share of pixels (per cent) that differ visibly on the panel."""
+    """Share of pixels (per cent) that differ visibly on the panel.
+
+    Measured in greyscale even for colour devices: their panels resolve
+    far more luminance than chroma, and chroma-only artefacts are a
+    second-order effect this budget deliberately ignores.
+    """
     from PIL import ImageChops
     diff = ImageChops.difference(ref_levels, _to_levels(decoded))
     h = diff.histogram()
@@ -325,7 +330,7 @@ def _qt_optimize(data, profile, quality, png_to_jpeg, force_grayscale,
     return ImageResult(out, out_fmt, img.width(), img.height(), True)
 
 
-# --------------------------------------------------------------- Fassade ---
+# ---------------------------------------------------------------- Facade ---
 
 def backend_name():
     if _pillow_available():

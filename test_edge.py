@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+import shutil
 import tarfile
 import tempfile
 import zipfile
@@ -152,6 +153,36 @@ try:
           zipfile.is_zipfile(outt), rep.source_format)
 except Exception as e:
     check('CBT is read and written as CBZ', False, str(e))
+
+# 12b CB7 (7z) is read when an unpacker exists; on Windows the built-in
+#     System32 tar.exe covers it
+import subprocess
+win_tar = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'),
+                       'System32', 'tar.exe')
+have_7z = (shutil.which('7z') or shutil.which('bsdtar')
+           or (os.name == 'nt' and os.path.isfile(win_tar)))
+if have_7z:
+    cb7 = os.path.join(tmp, 's.cb7')
+    pagedir = os.path.join(tmp, 'cb7pages')
+    os.makedirs(pagedir, exist_ok=True)
+    for i in (1, 2):
+        enc_page = enc(Image.new('RGB', (1600, 2200), (40 * i, 60, 60)),
+                       'JPEG')
+        open(os.path.join(pagedir, 'p%d.jpg' % i), 'wb').write(enc_page)
+    packer = shutil.which('bsdtar') or (win_tar if os.name == 'nt' else None)
+    try:
+        subprocess.run([packer, '--format', '7zip', '-cf', cb7,
+                        '-C', pagedir, 'p1.jpg', 'p2.jpg'],
+                       check=True, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+        rep = optimize_comic(cb7, os.path.join(tmp, 's_out.cbz'), P)
+        check('CB7 is read and written as CBZ',
+              rep.source_format == 'CB7' and rep.pages == 2,
+              '%s, %d pages' % (rep.source_format, rep.pages))
+    except Exception as e:
+        check('CB7 is read and written as CBZ', False, str(e)[:60])
+else:
+    print('  CB7: no 7z-capable unpacker on this machine, skipped')
 
 # 13 CBR without an unpacker: a clear error, not a crash
 cbr = os.path.join(tmp, 'x.cbr')

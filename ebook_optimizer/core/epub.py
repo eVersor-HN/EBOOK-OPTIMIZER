@@ -9,6 +9,7 @@ What it does:
 Structure and metadata are otherwise left alone.
 """
 
+import os
 import posixpath
 import re
 import zipfile
@@ -108,7 +109,6 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
     jobs: process images in parallel (1 = serial).
     Returns an EpubReport.
     """
-    import os
     rep = EpubReport(src)
     rep.old_size = os.path.getsize(src)
 
@@ -190,7 +190,7 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                 payload[new_name] = res.data
             else:
                 payload[name] = data
-                if res.reason and res.reason not in ('kein Gewinn',):
+                if res.reason and res.reason != 'no gain':
                     rep.notes.append('%s: %s' % (name, res.reason))
 
         # --- Update the text files --------------------------------------

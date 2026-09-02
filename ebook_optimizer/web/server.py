@@ -286,6 +286,11 @@ def _worker(job_id, files, opts):
 
 
 def start_job(files, opts):
+    # Keep memory bounded: results of old runs are not needed forever.
+    if len(_jobs) > 20:
+        for k in sorted(_jobs, key=lambda k: _jobs[k]['started'])[:-10]:
+            if _jobs[k].get('finished'):
+                _jobs.pop(k, None)
     job_id = uuid.uuid4().hex[:12]
     _jobs[job_id] = {
         'id': job_id, 'state': 'running', 'total': len(files), 'done': 0,

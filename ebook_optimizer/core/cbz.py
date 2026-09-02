@@ -15,11 +15,11 @@ import subprocess
 import tempfile
 import zipfile
 
-from .imaging import EXT_FOR_FMT, RASTER_EXT, optimize_image
+from .imaging import EXT_FOR_FMT, RASTER_EXT
 from .pool import optimize_many
 from .util import ext_of, is_junk, natural_key
 
-COMIC_EXT = {'.cbz', '.cbr', '.cbt', '.zip', '.rar'}
+COMIC_EXT = {'.cbz', '.cbr', '.cbt', '.cb7', '.zip', '.rar'}
 
 
 class CbzReport:
@@ -37,7 +37,7 @@ class CbzReport:
         return self.old_size - self.new_size
 
 
-# ------------------------------------------------------------- Entpacken ---
+# ------------------------------------------------------------ Unpacking ---
 
 def _iter_zip(path):
     with zipfile.ZipFile(path, 'r') as z:
@@ -58,11 +58,18 @@ def _iter_tar(path):
                 yield m.name, f.read()
 
 
-def _iter_rar(path):
-    """Unpack a CBR. Tried in order:
-    rarfile -> calibre.utils.unrar -> external unrar/7z/bsdtar.
+def _iter_packed(path):
+    """Unpack a CBR or CB7. Tried in order: the rarfile module (CBR only),
+    calibre.utils.unrar (CBR only), then an external unrar/7z/bsdtar.
+
+    On Windows 10 and later the system ships bsdtar as
+    C:/Windows/System32/tar.exe, which reads both RAR and 7z - so CB7
+    works out of the box there even with nothing else installed.
     """
+    is_7z = open(path, 'rb').read(6) == b'7z' + bytes([0xbc, 0xaf, 0x27, 0x1c])
     try:
+        if is_7z:
+            raise ImportError            # rarfile cannot open 7z
         import rarfile
         with rarfile.RarFile(path) as rf:
             for info in rf.infolist():
@@ -74,6 +81,8 @@ def _iter_rar(path):
         pass
 
     try:
+        if is_7z:
+            raise ImportError            # calibre's unrar is RAR only
         from calibre.utils.unrar import extract
         tmp = tempfile.mkdtemp(prefix='ebook_opt_rar_')
         try:
@@ -92,14 +101,27 @@ def _iter_rar(path):
     except Exception:
         pass
 
-    for cmd in (['unrar', 'x', '-y', '-inul'], ['7z', 'x', '-y'],
-                ['bsdtar', '-xf']):
-        exe = shutil.which(cmd[0])
+    tools = [['unrar', 'x', '-y', '-inul'], ['7z', 'x', '-y'],
+             ['bsdtar', '-xf']]
+    if os.name == 'nt':
+        # Windows ships bsdtar, but names it tar.exe. Only the System32
+        # copy is libarchive; a Git-supplied GNU tar earlier on PATH
+        # cannot read RAR or 7z, so the path is given explicitly.
+        win_tar = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'),
+                               'System32', 'tar.exe')
+        if os.path.isfile(win_tar):
+            tools.append([win_tar, '-xf'])
+    for cmd in tools:
+        exe = shutil.which(cmd[0]) or (
+            cmd[0] if os.path.isabs(cmd[0]) and os.path.isfile(cmd[0])
+            else None)
         if not exe:
+            continue
+        if is_7z and cmd[0] == 'unrar':
             continue
         tmp = tempfile.mkdtemp(prefix='ebook_opt_rar_')
         try:
-            if cmd[0] == 'bsdtar':
+            if cmd[0] == 'bsdtar' or cmd[0].endswith('tar.exe'):
                 args = [exe, '-xf', path, '-C', tmp]
             elif cmd[0] == '7z':
                 args = [exe, 'x', '-y', '-o' + tmp, path]
@@ -122,8 +144,8 @@ def _iter_rar(path):
             shutil.rmtree(tmp, ignore_errors=True)
 
     raise RuntimeError(
-        'Cannot unpack CBR: neither the Python module "rarfile" nor '
-        'unrar/7z/bsdtar was found.')
+        'Cannot unpack this archive: neither the Python module "rarfile" '
+        'nor unrar/7z/bsdtar was found.')
 
 
 def _read_archive(path):
@@ -132,8 +154,10 @@ def _read_archive(path):
         return 'CBZ', list(_iter_zip(path))
     if ext in ('.cbt',):
         return 'CBT', list(_iter_tar(path))
+    if ext == '.cb7':
+        return 'CB7', list(_iter_packed(path))
     try:
-        return 'CBR', list(_iter_rar(path))
+        return 'CBR', list(_iter_packed(path))
     except Exception:
         import tarfile
         if tarfile.is_tarfile(path):
@@ -167,7 +191,7 @@ def _new_comicinfo():
             b'</ComicInfo>\n')
 
 
-# ------------------------------------------------------------ Hauptlogik ---
+# ------------------------------------------------------------ Main logic ---
 
 def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
                    manga=False, to_jpeg='auto', quantize_gray=True,
@@ -220,7 +244,7 @@ def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
         else:
             out_entries.append((name, data))
             used.add(name)
-            if res.reason and res.reason != 'kein Gewinn':
+            if res.reason and res.reason != 'no gain':
                 rep.notes.append('%s: %s' % (name, res.reason))
 
     have_comicinfo = False

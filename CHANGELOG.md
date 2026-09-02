@@ -4,6 +4,22 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.1 · 2026-09-02
+
+- **CB7 comics actually work now.** The README claimed CB7 support but the comic scanner never
+  recognised the extension. On Windows 10 and later they now work out of the box, because the
+  system ships bsdtar as `System32	ar.exe` and bsdtar reads 7z - the tool just had to know to
+  look for it under that name.
+- A leftover German string comparison flooded the per-file notes with one "no gain" line per
+  unchanged image. Notes are quiet again.
+- An unknown `--to` format is rejected up front with the list of available ones, instead of
+  failing once per file inside Calibre.
+- AZW3/MOBI conversion now hands Calibre the right output profile per brand - Kindle models map
+  to Calibre's Kindle profiles, Kobo to Kobo, PocketBook to PocketBook - instead of everything
+  being treated as a generic panel. Calibre sizes covers and margins from this.
+- The web server no longer keeps every finished job in memory forever.
+- Dead code removed, the last German comments translated.
+
 ## 0.4.0 · 2026-09-02
 
 - **The quality is no longer a setting.** Every image is now encoded a few times and keeps the

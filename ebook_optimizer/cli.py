@@ -232,13 +232,19 @@ def main(argv=None):
     quantize = target.quantize and not args.no_quantize
 
     target_fmt = args.to.lstrip('.').lower() if args.to else None
-    if target_fmt and target_fmt not in ('epub', 'kepub', 'cbz') \
-            and not conv.available():
-        print('Output format "%s" needs Calibre, which was not found.'
-              % target_fmt, file=sys.stderr)
-        print('Install it from https://calibre-ebook.com and try again.',
-              file=sys.stderr)
-        return 2
+    if target_fmt and target_fmt not in ('epub', 'kepub', 'cbz'):
+        if not conv.available():
+            print('Output format "%s" needs Calibre, which was not found.'
+                  % target_fmt, file=sys.stderr)
+            print('Install it from https://calibre-ebook.com and try again.',
+                  file=sys.stderr)
+            return 2
+        if target_fmt not in conv.output_formats():
+            print('Unknown output format "%s". Available: %s'
+                  % (target_fmt,
+                     ', '.join(sorted(set(conv.output_formats()) | {'cbz'}))),
+                  file=sys.stderr)
+            return 2
 
     files = collect(args.paths, args.recursive, args.out_dir)
     if not files:

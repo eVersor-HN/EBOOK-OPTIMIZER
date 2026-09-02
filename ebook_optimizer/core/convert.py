@@ -31,18 +31,6 @@ FALLBACK_INPUT = ('azw', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm',
                   'pdf', 'pml', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tcr',
                   'txt', 'txtz', 'xhtml', 'zip')
 
-# The format that works best on each device.
-DEVICE_FORMAT = {
-    'pb_verse_pro': 'epub',
-    'pb_verse': 'epub',
-    'kobo_clara_bw': 'kepub',
-    'kobo_clara_colour': 'kepub',
-    'generic_6in_300ppi': 'epub',
-}
-
-# Formats we can still work on after conversion.
-OPTIMIZABLE = {'epub', 'kepub', 'cbz'}
-
 # Formats that hold text only. Converting into one of these throws every
 # image away, which is a legitimate thing to want and a nasty surprise
 # when it is not.
@@ -186,13 +174,32 @@ def convert(src, dst, profile=None, extra_args=None, timeout=1800):
     return dst
 
 
+# Calibre's own output profiles, as shipped in calibre 9.14. The
+# mapping matters mostly for AZW3 and MOBI, where Calibre sizes the
+# cover and margins to the profile.
+_CALIBRE_PROFILES = {
+    'kindle_scribe': 'kindle_scribe',
+    'kindle_oasis_3': 'kindle_oasis',
+    'kobo_elipsa_2e': 'generic_eink_large',
+    'pb_inkpad_4': 'pocketbook_inkpad3',
+    'pb_inkpad_color_3': 'pocketbook_inkpad3',
+    'kindle': 'kindle_pw3',
+    'kobo': 'kobo',
+    'nook': 'nook',
+    'pocketbook': 'pocketbook_hd',
+}
+
+
 def _calibre_profile(profile):
     """Translate our device profile into Calibre's output profile."""
     key = getattr(profile, 'key', '')
-    if key.startswith('kobo'):
-        return 'kobo'
-    if key.startswith('pb'):
-        return 'generic_eink_hd'
+    brand = getattr(profile, 'brand', '').lower()
+    if key in _CALIBRE_PROFILES:
+        return _CALIBRE_PROFILES[key]
+    if brand in _CALIBRE_PROFILES:
+        return _CALIBRE_PROFILES[brand]
+    if getattr(profile, 'long_edge', 0) >= 1872:
+        return 'generic_eink_large'
     return 'generic_eink_hd'
 
 

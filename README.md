@@ -32,7 +32,7 @@ This is the **official** distribution repository:
 [Verify authenticity](#-verify-authenticity-sha-256) ·
 [Usage](#usage) ·
 [Devices](#devices) ·
-[Compression presets](#compression-presets) ·
+[Quality: measured, not set](#quality-measured-not-set) ·
 [Features](#features) ·
 [Options](#options) ·
 [System requirements](#system-requirements) ·
@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.0.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.1.zip` — SHA-256:**
 
 ```
-16141ea482d52d0c396cc16e142e887c4d81f63397015d2c374b155be4135438
+e7f28d3b0e6a314f423d75464a100570dd98101b0efda4f87a15614867999f32
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.0.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.1.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.0.zip    sha256sum EBOOK-OPTIMIZER-0.4.0.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.1.zip    sha256sum EBOOK-OPTIMIZER-0.4.1.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -147,8 +147,8 @@ python -m ebook_optimizer.cli ~/Books -r -n
 # Optimise a whole library, keeping each file's format
 python -m ebook_optimizer.cli ~/Books -r
 
-# Squeeze harder, for a device that is running out of space
-python -m ebook_optimizer.cli ~/Books -r --preset small
+# Trade a little softness for much smaller files
+python -m ebook_optimizer.cli ~/Books -r --target smaller
 
 # Optimise and convert to Kindle format
 python -m ebook_optimizer.cli manga.cbr --device kindle_pw_12 --to azw3
@@ -158,7 +158,7 @@ python -m ebook_optimizer.cli book.epub --device kobo_libra_2 --to kepub
 
 # What is available on this machine?
 python -m ebook_optimizer.cli --list-devices
-python -m ebook_optimizer.cli --list-presets
+python -m ebook_optimizer.cli --list-targets
 python -m ebook_optimizer.cli --list-formats
 ```
 
@@ -270,6 +270,8 @@ Two honest limits:
 
 - **CBZ output is refused for books.** CBZ is a comic container; asking for a novel in one gets a
   readable error rather than a broken file.
+- **CB7 needs a 7z-capable unpacker.** On Windows 10 and later nothing extra is required - the
+  system's own `tar.exe` is bsdtar and reads 7z. Elsewhere, `7z` or `bsdtar` on `PATH` covers it.
 - **TXT, TCR, PDB and TXTZ store text only.** Converting into one throws every image away. The
   tool says so in the result rather than reporting a spectacular saving.
 

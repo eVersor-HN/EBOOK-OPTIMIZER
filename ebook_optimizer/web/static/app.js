@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 // not have. The server serves these files straight from disk, so an
 // already running process can hand out a new page while its own Python
 // is still the old one - which looks exactly like a dead button.
-const NEEDS_VERSION = '0.4.0';
+const NEEDS_VERSION = '0.4.1';
 
 const STATE = {
   cwd: '',
@@ -115,8 +115,8 @@ async function loadStatus() {
   if (s.version !== NEEDS_VERSION) {
     notify('The server is running version ' + (s.version || 'unknown')
       + ' while this page expects ' + NEEDS_VERSION
-      + '. Close the server window and start it again - otherwise some\n'
-      + ' buttons will do nothing.', true);
+      + '. Close the server window and start it again - '
+      + 'otherwise some buttons will do nothing.', true);
   }
 }
 

@@ -4,6 +4,21 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.6.0 · 2026-09-02
+
+- **PDFs can now be shrunk as PDFs.** Scanned books must never go through a text converter - that
+  throws the page facsimiles away - so the images inside the PDF are rewritten in place instead:
+  downscaled to the panel, greyscale, and encoded as whichever of measured-quality JPEG or
+  JPEG 2000 is smaller. Text layer, searchability and structure survive. Needs the optional
+  `pikepdf` module; without it PDFs are copied unchanged with a note.
+- The JPEG 2000 rates were validated **by eye** on real 1940s book scans, because the per-pixel
+  metric counts reshuffled scan grain rather than legibility there. Rate 20 reads identically to
+  the source; a compressed page shown at −76 % is indistinguishable when reading.
+- Honest numbers from a 15-file corpus sample: plain scanned PDFs shrink by 40-76 %; archive.org
+  MRC files (JBIG2 text mask over JPX background) are already near-optimal and are deliberately
+  left alone, so a mixed corpus averages around −14 %. Images with masks are never touched -
+  repainting one layer of an MRC composite breaks the page.
+
 ## 0.5.1 · 2026-09-02
 
 - **The output tree is complete now.** When a file could not be made smaller, nothing used to be

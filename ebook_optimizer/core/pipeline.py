@@ -21,6 +21,7 @@ import tempfile
 from . import convert as conv
 from .cbz import COMIC_EXT, optimize_comic
 from .epub import optimize_epub
+from .pdf import optimize_pdf, pikepdf_available
 from .util import ext_of
 
 EPUB_EXT = {'.epub', '.kepub'}
@@ -134,6 +135,30 @@ def process(src, dst, profile, target_fmt=None, **opts):
                 res.converted_from = ext.lstrip('.')
             res.detail = detail
             res.notes = list(getattr(rep, 'notes', []))
+
+        # --- Case 2a: PDF stays PDF -------------------------------------
+        # A text converter destroys scanned pages, so a PDF that stays a
+        # PDF gets its images rewritten in place instead. Needs pikepdf;
+        # without it there is no safe way to shrink a PDF, so the file
+        # is left untouched with a note rather than mangled.
+        elif fmt == 'pdf' and ext == '.pdf':
+            if pikepdf_available():
+                rep = optimize_pdf(
+                    work, dst, profile,
+                    quality=opts.get('quality', 80),
+                    force_grayscale=opts.get('force_grayscale'),
+                    progressive=opts.get('progressive', True),
+                    target_error=opts.get('target_error'))
+                res.detail = ('%d/%d images rewritten, %d kept'
+                              % (rep.images_changed, rep.images,
+                                 rep.images_kept))
+                res.notes = list(rep.notes)
+            else:
+                shutil.copyfile(work, dst)
+                res.detail = 'pdf left as is'
+                res.notes.append(
+                    'shrinking a PDF in place needs the "pikepdf" module '
+                    '(pip install pikepdf); the file was copied unchanged')
 
         # --- Case 2: a container we can open ----------------------------
         elif fmt in OPTIMIZABLE:

@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.5.1.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.6.0.zip` — SHA-256:**
 
 ```
-2ac0c223bed10f8d581d8feb4010229d8a4606504505a17c4eeb6fb4fb786918
+fc17d5237897d7d9de3ee20ecee37d589cdcadd52f1b056973e1e5240a6bf82a
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.5.1.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.6.0.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.5.1.zip    sha256sum EBOOK-OPTIMIZER-0.5.1.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.6.0.zip    sha256sum EBOOK-OPTIMIZER-0.6.0.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -270,6 +270,10 @@ PDF carries no structure of its own.
 
 Two honest limits:
 
+- **A PDF kept as PDF is shrunk in place**: its images are rewritten for the panel while the
+  text layer and searchability survive. Plain scans shrink by 40-76 %; archive.org MRC scans
+  (JBIG2 mask over JPX background) are already near-optimal and are left alone. Requires the
+  optional `pikepdf` module.
 - **CBZ output is refused for books.** CBZ is a comic container; asking for a novel in one gets a
   readable error rather than a broken file.
 - **CB7 needs a 7z-capable unpacker.** On Windows 10 and later nothing extra is required - the
@@ -333,6 +337,7 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | **Pillow** | `pip install pillow` — the only required dependency |
 | **Calibre** | Needed **only** for format conversion. Optimising EPUB, KEPUB and CBZ works without it. |
 | **CBR input** | Needs an unpacker: the `rarfile` module, or `unrar` / `7z` / `bsdtar` on `PATH`. |
+| **PDF shrinking** | Needs `pikepdf` (`pip install pikepdf`). Converting PDFs to other formats works without it. |
 | **OS** | Windows, macOS, Linux |
 
 Calibre is located automatically through `PATH` and the usual install locations. When it is

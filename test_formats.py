@@ -135,6 +135,26 @@ def from_epub(src_epub, workdir):
     print('%d of %d output formats behaved correctly' % (ok, len(targets)))
 
 
+def pdf_stays_pdf(sources, workdir):
+    """A PDF kept as PDF must go through the in-place image rewrite,
+    not through the destructive text converter."""
+    if 'pdf' not in sources:
+        return
+    print('')
+    print('PDF stays PDF (image rewrite, no text conversion)')
+    from ebook_optimizer.core.pdf import pikepdf_available
+    if not pikepdf_available():
+        print('  pikepdf not installed - skipped')
+        return
+    dst = os.path.join(workdir, 'pdf_roundtrip.pdf')
+    r = process(sources['pdf'], dst, PROFILE, target_fmt='pdf',
+                target_error=0.10)
+    ok = 'images rewritten' in r.detail and os.path.getsize(dst) > 1000
+    print('  %s  (%s)' % ('ok' if ok else 'FAIL', r.detail))
+    if not ok:
+        FAILS.append('pdf stays pdf')
+
+
 def main():
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'testdata', 'testbuch.epub')
@@ -156,6 +176,7 @@ def main():
               % (len(sources), ', '.join(sorted(sources))))
         to_epub(sources, workdir)
         from_epub(sources['epub'], workdir)
+        pdf_stays_pdf(sources, workdir)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 

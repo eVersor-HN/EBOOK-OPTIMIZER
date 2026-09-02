@@ -98,7 +98,7 @@ README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 **`EBOOK-OPTIMIZER-0.2.0.zip` — SHA-256:**
 
 ```
-587e975c09f8a43e01309efc6cd7ee2956f358129d902c0864435f9092933128
+dc5001cfd67c5a97779ac43271365b3d6b65984232e3f80f1e3ce3fbaf5ddfc0
 ```
 
 ```powershell
@@ -155,7 +155,7 @@ python build_plugin.py
 ```
 
 In Calibre: *Preferences → Plugins → Load plugin from file* →
-`dist/EBOOK-OPTIMIZER-calibre-plugin.zip*`, then restart. The plugin adds a toolbar button that
+`dist/EBOOK-OPTIMIZER-calibre-plugin.zip`, then restart. The plugin adds a toolbar button that
 optimises the selected books.
 
 ---

@@ -43,6 +43,11 @@ DEVICE_FORMAT = {
 # Formats we can still work on after conversion.
 OPTIMIZABLE = {'epub', 'kepub', 'cbz'}
 
+# Formats that hold text only. Converting into one of these throws every
+# image away, which is a legitimate thing to want and a nasty surprise
+# when it is not.
+TEXT_ONLY = {'txt', 'tcr', 'pdb', 'txtz'}
+
 # Comic formats take their own path, see core.cbz.
 COMIC_IN = {'cbz', 'cbr', 'cbt', 'cb7'}
 

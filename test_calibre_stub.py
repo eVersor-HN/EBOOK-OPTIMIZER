@@ -180,13 +180,13 @@ def test_config():
     import ebook_optimizer.config as cfg
     sys.modules['calibre_plugins.ebook_optimizer.config'] = cfg
 
-    from ebook_optimizer.core.profiles import PRESET_ORDER, PROFILES
+    from ebook_optimizer.core.profiles import PROFILES, TARGET_ORDER
     w = cfg.ConfigWidget()
     check('ConfigWidget builds', True)
     check('every device is in the dropdown',
           w.profile.count() == len(PROFILES), str(w.profile.count()))
-    check('every preset is in the dropdown',
-          w.preset.count() == len(PRESET_ORDER), str(w.preset.count()))
+    check('every quality target is in the dropdown',
+          w.target.count() == len(TARGET_ORDER), str(w.target.count()))
     check('image-format mode has three options', w.png_mode.count() == 3)
     check('image-format default is auto', w.png_mode.currentData() == 'auto',
           str(w.png_mode.currentData()))
@@ -203,18 +203,19 @@ def test_config():
           cfg.prefs['progressive'] is False)
 
     cfg.prefs.clear()
-    check('without an override the preset quality applies',
-          cfg.effective_quality() == 80, str(cfg.effective_quality()))
-    cfg.prefs['preset'] = 'smallest'
-    check('preset "smallest" lowers quality to 60',
-          cfg.effective_quality() == 60, str(cfg.effective_quality()))
+    check('by default the quality is measured per image',
+          cfg.effective_quality() == 0 and cfg.effective_target_error() == 0.10,
+          '%s / %s' % (cfg.effective_quality(), cfg.effective_target_error()))
+    cfg.prefs['target'] = 'smaller'
+    check('the "smaller" target loosens the budget',
+          cfg.effective_target_error() == 0.75,
+          str(cfg.effective_target_error()))
     cfg.prefs['quality'] = 72
-    check('a manual quality overrides the preset',
-          cfg.effective_quality() == 72, str(cfg.effective_quality()))
+    check('a fixed quality switches the measurement off',
+          cfg.effective_quality() == 72
+          and cfg.effective_target_error() is None,
+          '%s / %s' % (cfg.effective_quality(), cfg.effective_target_error()))
     cfg.prefs.clear()
-    cfg.prefs['preset'] = 'maximum'
-    check('preset "maximum" turns quantisation off',
-          cfg.effective_quantize() is False)
 
     # Migration: the old boolean switch with no new key
     cfg.prefs.clear()
@@ -290,12 +291,12 @@ def test_job():
     opts = {'profile': 'pb_verse_pro', 'quality': 80, 'fonts': 'strip',
             'png_mode': 'auto', 'keep_color': False, 'quantize': True,
             'manga': False, 'progressive': True, 'add_as_format': True,
-            'replace_original': True}
+            'replace_original': True, 'target_error': 0.10}
     # Exactly the keys ui.start() assembles. If those drift apart it
     # shows up here rather than inside Calibre.
     built = {'profile', 'fonts', 'keep_color', 'manga', 'progressive',
              'add_as_format', 'replace_original', 'png_mode', 'quality',
-             'quantize'}
+             'quantize', 'target_error'}
     check('ui.start() supplies exactly the expected keys',
           built == set(opts), str(built ^ set(opts)))
     log_lines = []

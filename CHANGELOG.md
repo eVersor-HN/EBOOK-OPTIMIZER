@@ -4,6 +4,30 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.0 · 2026-09-02
+
+- **The quality is no longer a setting.** Every image is now encoded a few times and keeps the
+  lowest quality that still looks untouched on the panel. Measured across comic pages, manga
+  pages, webtoon strips, watercolour plates, 1897 halftone scans and an illustrated novel, the
+  quality an image actually needs ranges from 45 to 85 — a single fixed number is wrong for most
+  of them. The four presets are gone; two targets remain, *Looks the same* and *Clearly smaller*,
+  and `--quality N` still pins a fixed value.
+- Results: colour comic −94.4 % (was −92.8 %), watercolour plates −58.7 % (was −31.8 %), halftone
+  photo book −21.4 % (was −15.5 %). About 7 % smaller overall than a fixed quality of 80, at the
+  cost of roughly 45 % more processing time.
+- **Choose folder / Choose files really open the system dialog now.** In 0.3.2 the buttons were
+  there but a server left running from an earlier version served the new page with old Python
+  behind it, so the request 404'd and the error was hidden in a small status line. Errors are now
+  shown as a banner, and the page warns outright when the server is running an older version.
+- **New `test_formats.py`**: generates a source file in every format Calibre can write and runs
+  each one through the tool. 19 input formats produce an optimised EPUB, and all 20 output
+  formats behave correctly.
+- **PDF in, EPUB out works**, including PDFs with text and images.
+- **CBZ output is refused for books** with a readable reason instead of failing deep inside
+  Calibre. CBZ is a comic container.
+- **TXT, TCR, PDB and TXTZ discard every image**, which the result now says out loud rather than
+  reporting it as a saving of 100 %.
+
 ## 0.3.2 · 2026-09-02
 
 - **Choose folder** and **Choose files** buttons now open your operating system's own dialog. The

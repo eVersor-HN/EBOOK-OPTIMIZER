@@ -19,6 +19,8 @@
   <div class="sysinfo" id="sysinfo"></div>
 </header>
 
+<div id="staleWarn" class="banner banner-stop" hidden></div>
+
 <div id="calibreWarn" class="banner" hidden>
   <strong>Calibre not found.</strong>
   <span>Without it only <code>EPUB</code>, <code>KEPUB</code> and
@@ -82,14 +84,22 @@
 
   <!-- 3 COMPRESSION -->
   <section class="card">
-    <div class="chead"><span class="num">3</span><h2>How hard should it compress?</h2></div>
+    <div class="chead"><span class="num">3</span><h2>How should the result look?</h2></div>
     <div class="cbody">
+      <p class="hint">There is no fixed quality behind these. Every image is
+        measured and gets the lowest quality that still meets the target,
+        because what an image needs ranges from 45 to 85 depending entirely
+        on the image.</p>
       <div class="presets" id="presets"></div>
 
       <details class="manual" id="manualBox">
         <summary>Set it manually</summary>
         <div class="manualBody">
-          <label class="field">
+          <label class="check">
+            <input type="checkbox" id="fixedQuality">
+            <span>Pin one fixed quality instead of measuring per image</span>
+          </label>
+          <label class="field" id="qualityRow" hidden>
             <span>JPEG quality <output id="qOut">80</output></span>
             <input type="range" id="quality" min="40" max="95" value="80">
             <span class="scale"><em>smaller file</em><em>better quality</em></span>

@@ -108,6 +108,13 @@ body {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline;
 }
 .banner strong { color: var(--warn); }
+.banner-stop {
+  background: #fdecec; border-color: rgba(179, 64, 63, .3);
+}
+.banner-stop strong { color: var(--danger); }
+@media (prefers-color-scheme: dark) {
+  .banner-stop { background: #33211f; }
+}
 .banner a { color: var(--accent); }
 .banner code {
   font-family: var(--mono); font-size: 12.5px;

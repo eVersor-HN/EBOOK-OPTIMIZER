@@ -68,7 +68,8 @@ def _optimize_container(src, dst, fmt, profile, opts):
             manga=opts.get('manga', False),
             quantize_gray=opts.get('quantize_gray', True),
             progressive=opts.get('progressive', True),
-            jobs=opts.get('jobs', 1))
+            jobs=opts.get('jobs', 1),
+            target_error=opts.get('target_error'))
         return rep, '%s, %d/%d pages' % (rep.source_format, rep.pages_changed,
                                          rep.pages)
     rep = optimize_epub(
@@ -79,7 +80,8 @@ def _optimize_container(src, dst, fmt, profile, opts):
         force_grayscale=opts.get('force_grayscale'),
         quantize_gray=opts.get('quantize_gray', True),
         progressive=opts.get('progressive', True),
-        jobs=opts.get('jobs', 1))
+        jobs=opts.get('jobs', 1),
+        target_error=opts.get('target_error'))
     return rep, '%d/%d images, %d fonts removed' % (
         rep.images_changed, rep.images, rep.fonts_removed)
 
@@ -103,6 +105,13 @@ def process(src, dst, profile, target_fmt=None, **opts):
     else:
         fmt = ext.lstrip('.').lower()
     res.converted_to = fmt
+
+    # CBZ is a comic container. Calibre cannot write one, and stuffing a
+    # novel into one would make no sense anyway.
+    if fmt == 'cbz' and not is_comic:
+        raise ValueError(
+            'CBZ output is only available for comic sources (CBZ, CBR, CBT, '
+            'CB7). For a book, pick EPUB or another e-book format.')
 
     tmpdir = tempfile.mkdtemp(prefix='ebook_opt_pipe_')
     try:
@@ -156,6 +165,10 @@ def process(src, dst, profile, target_fmt=None, **opts):
 
         res.dst = dst
         res.new_size = os.path.getsize(dst)
+        if fmt in conv.TEXT_ONLY:
+            res.notes.append(
+                'the %s format stores text only, so every image was dropped'
+                % fmt.upper())
         return res
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

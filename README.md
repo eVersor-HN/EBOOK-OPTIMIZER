@@ -12,8 +12,9 @@ the result to Calibre when a different container is needed. A 35-page colour com
 83 MB to 6 MB. A plain-text novel is left untouched, because there is nothing to gain. Everything
 runs on your machine: no cloud, no account, no telemetry.
 
-**36 device profiles** across Kindle, Kobo, PocketBook, Boox, Tolino, Nook and reMarkable, and
-four compression presets whose trade-offs were measured rather than guessed.
+**36 device profiles** across Kindle, Kobo, PocketBook, Boox, Tolino, Nook and reMarkable.
+There is no fixed quality setting: every image is measured and gets the lowest quality that still
+looks untouched on the panel.
 
 > **Open source.** Licensed under the **GNU General Public License v3.0** — free to use, study,
 > modify and redistribute under the same terms. See [LICENSE](LICENSE).
@@ -50,21 +51,21 @@ there is nothing honest to report.
 
 | File | Before | After | Change |
 |---|---|---|---|
-| Colour comic, 35 pages | 83.0 MB | 6.0 MB | −92.8 % |
-| Same volume, greyscale scan | 49.2 MB | 6.0 MB | −87.9 % |
-| Webtoon long strips | 3.7 MB | 2.3 MB | −38.9 % |
-| Illustrated book, 29 colour plates | 1.4 MB | 1005 KB | −31.8 % |
-| Halftone photo book, 59 images | 1.2 MB | 1.0 MB | −15.5 % |
-| Plain-text novel | 183 KB | unchanged | 0 % |
+| Colour comic, 35 pages | 83.0 MB | 4.7 MB | −94.4 % |
+| Same volume, greyscale scan | 49.2 MB | 4.7 MB | −90.5 % |
+| Illustrated novel, 164 images | 23.7 MB | 19.1 MB | −19.5 % |
+| Webtoon long strips | 3.7 MB | 2.1 MB | −43.8 % |
+| Illustrated book, 29 colour plates | 1.4 MB | 608 KB | −58.7 % |
+| Halftone photo book, 59 images | 1.2 MB | 978 KB | −21.4 % |
+| Novel with a cover and no other images | 183 KB | 157 KB | −14.3 % |
 
 Measured on Windows 11 / Python 3.13 / Pillow 12.2 with 8 workers, on public-domain and Creative
 Commons files, so the numbers can be reproduced.
 
-The bottom two rows matter most. The halftone book is a set of 1897 screened scans; re-encoded at
-quality 80 they **grow by about 13 %**, because a halftone dot pattern is exactly what JPEG
-handles worst. 53 of its 59 images are therefore left alone. A plain novel has no images at all,
-so the original is kept byte-for-byte. **If a file cannot be made smaller, the original is what
-you get back.**
+Normal books are not a special case: the illustrated novel is *Pride and Prejudice* with 164
+figures, and it behaves like everything else. A book whose only image is its cover still saves
+something; a file that genuinely cannot be made smaller is returned untouched. **If a file cannot
+be made smaller, the original is what you get back.**
 
 ---
 
@@ -100,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.3.2.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.0.zip` — SHA-256:**
 
 ```
-9ac696e57a631309f610615d3460d3678fd3796f8c935f4a4bee6d2ec79ebbe2
+16141ea482d52d0c396cc16e142e887c4d81f63397015d2c374b155be4135438
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.3.2.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.0.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.3.2.zip    sha256sum EBOOK-OPTIMIZER-0.3.2.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.0.zip    sha256sum EBOOK-OPTIMIZER-0.4.0.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -194,32 +195,31 @@ greyscale, because it cannot show anything else.
 
 ---
 
-## Compression presets
+## Quality: measured, not set
 
-Four presets, and manual control when you want it. The numbers are measurements, not adjectives.
+There is no fixed quality number in this tool, because a fixed number is wrong for most images.
+Measured across comic pages, manga pages, webtoon strips, watercolour plates, 1897 halftone scans
+and an illustrated novel, the quality needed to look untouched on a 16-level e-ink panel ranges
+from **45 to 85, depending entirely on the image**. Quality 80 wastes 40 % of the bytes on a flat
+watercolour plate and is not quite enough for a detailed halftone page.
 
-| Preset | Quality | Size vs. Balanced | Visibly wrong pixels |
-|---|---|---|---|
-| **Maximum quality** | 90 | +25 to +60 % | 0.000 % |
-| **Balanced** *(default)* | 80 | — | 0.001 to 0.090 % |
-| **Small** | 70 | −19 to −36 % | 0.004 to 0.408 % |
-| **Smallest** | 60 | −32 to −42 % | 0.015 to 0.816 % |
+So each image is encoded a few times and keeps the lowest quality that still meets your target:
 
-Measured on five representative images: a colour comic page, a greyscale manga page, a webtoon
-strip, a watercolour plate and an 1897 halftone scan, each scaled to a 1072×1448 panel.
+| Target | Budget | What it means |
+|---|---|---|
+| **Looks the same** *(default)* | 0.10 % | Indistinguishable on the device |
+| **Clearly smaller** | 0.75 % | A touch softer on close inspection, much smaller files |
 
-*Visibly wrong pixels* counts pixels landing **two or more grey levels** away from the reference
-once both are reduced to the 16 levels an e-ink panel can display. A single level of difference is
-the smallest step the panel can make and is not counted, because it cannot be seen.
+The budget is the share of pixels allowed to land **two or more grey levels** away from the
+reference, once both are reduced to the 16 levels an e-ink panel can actually display. A single
+level of difference is the smallest step the panel can make and does not count, because it cannot
+be seen.
 
-Two things fall out of that:
+This costs about three extra JPEG encodes per image — a 35-page, 83 MB comic takes 2.3 s instead
+of 1.6 s — and returns roughly **7 % smaller files than a fixed quality of 80**, with every image
+meeting the same visible standard instead of the same number.
 
-- **Above quality 85 you are paying for nothing.** At 80 the panel-visible error is already under
-  a tenth of a percent, while 90 costs 25 to 60 % more space.
-- **Below 60 it starts to show**, and fine halftone artwork goes first. Text-heavy scans tolerate
-  it comfortably.
-
-`--list-presets` prints the same information on the command line.
+`--quality N` pins a fixed quality and switches the measurement off.
 
 ---
 
@@ -254,6 +254,25 @@ Two things fall out of that:
   base name occurs in two folders is optimised but never renamed, because references are rewritten
   by file name.
 
+### Formats
+
+Every combination below is checked by `test_formats.py`, which generates a source file in each
+format with Calibre and runs it through the tool.
+
+**19 input formats produce an optimised EPUB:** AZW3, DOCX, EPUB, FB2, HTMLZ, KEPUB, LIT, LRF,
+MOBI, PDB, PDF, PMLZ, RB, RTF, SNB, TCR, TXT, TXTZ, ZIP — plus CBZ, CBR, CBT and CB7 as comics.
+
+**PDF works**, including PDFs with both text and images: Calibre extracts what it can and the
+images are then optimised like any others. How well a PDF converts depends on the PDF, since a
+PDF carries no structure of its own.
+
+Two honest limits:
+
+- **CBZ output is refused for books.** CBZ is a comic container; asking for a novel in one gets a
+  readable error rather than a broken file.
+- **TXT, TCR, PDB and TXTZ store text only.** Converting into one throws every image away. The
+  tool says so in the result rather than reporting a spectacular saving.
+
 ### Format conversion
 
 20 output formats — EPUB, KEPUB, AZW3, MOBI, PDF, FB2, DOCX, RTF, TXT and more — from 49 input
@@ -280,9 +299,9 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | Option | Effect |
 |---|---|
 | `-d, --device` | Target device (default `pb_verse_pro`); `-p, --profile` still works |
-| `-c, --preset` | `maximum`, `balanced` (default), `small`, `smallest` |
+| `-c, --target` | `identical` (default) or `smaller` — how the result should look |
 | `-t, --to` | Output format — `epub`, `kepub`, `azw3`, `mobi`, `pdf`, `cbz`, … |
-| `-q, --quality` | JPEG quality 1–100, overrides the preset |
+| `-q, --quality` | Pin a fixed JPEG quality and switch the per-image measurement off |
 | `-r, --recursive` | Walk sub-folders |
 | `-o, --out-dir` | Output folder (default: `optimiert` beside the source) |
 | `-j, --jobs` | Parallel workers (default: core count, capped at 8) |
@@ -295,7 +314,7 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | `--no-progressive` | Baseline instead of progressive JPEG |
 | `-n, --dry-run` | Calculate only, write nothing |
 | `--list-devices` | Print every device profile and exit |
-| `--list-presets` | Explain the compression presets and exit |
+| `--list-targets` | Explain the quality targets and exit |
 | `--list-formats` | Print available output formats and exit |
 
 ---
@@ -345,6 +364,7 @@ python build_plugin.py                           # build the Calibre plugin zip
 python make_testdata.py                          # generate synthetic fixtures
 python test_edge.py                              # edge cases
 python test_calibre_stub.py                      # plugin code against stand-in Calibre APIs
+python test_formats.py                           # every input and output format (needs Calibre)
 python verify.py out/book.epub out/comic.cbz 8   # structural integrity of written files
 ```
 

@@ -5,12 +5,13 @@ from qt.core import (QCheckBox, QComboBox, QFormLayout, QLabel, QSpinBox,
                      QVBoxLayout, QWidget)
 
 from calibre_plugins.ebook_optimizer.core.profiles import (
-    DEFAULT_PRESET, DEFAULT_PROFILE, PRESET_ORDER, PRESETS, profiles_by_brand)
+    DEFAULT_PROFILE, DEFAULT_TARGET, TARGET_ORDER, TARGETS,
+    profiles_by_brand)
 
 prefs = JSONConfig('plugins/ebook_optimizer')
 prefs.defaults['profile'] = DEFAULT_PROFILE
-prefs.defaults['preset'] = DEFAULT_PRESET
-prefs.defaults['quality'] = 0            # 0 = follow the preset
+prefs.defaults['target'] = DEFAULT_TARGET
+prefs.defaults['quality'] = 0            # 0 = measure per image
 prefs.defaults['fonts'] = 'strip'
 prefs.defaults['png_mode'] = 'auto'      # same values as the command line
 prefs.defaults['png_to_jpeg'] = False    # legacy key, kept for migration
@@ -37,19 +38,25 @@ def current_png_mode():
     return mode if mode in PNG_MODE_ARG else 'auto'
 
 
-def current_preset():
-    p = prefs['preset']
-    return p if p in PRESETS else DEFAULT_PRESET
+def current_target():
+    t = prefs['target']
+    return t if t in TARGETS else DEFAULT_TARGET
 
 
 def effective_quality():
-    """Quality actually used: the manual override, else the preset."""
-    manual = int(prefs['quality'] or 0)
-    return manual if manual else PRESETS[current_preset()].quality
+    """Fixed quality, or 0 when the quality is measured per image."""
+    return int(prefs['quality'] or 0)
+
+
+def effective_target_error():
+    """Error budget, or None when a fixed quality was pinned."""
+    if int(prefs['quality'] or 0):
+        return None
+    return TARGETS[current_target()].budget
 
 
 def effective_quantize():
-    return bool(prefs['quantize']) and PRESETS[current_preset()].quantize
+    return bool(prefs['quantize']) and TARGETS[current_target()].quantize
 
 
 class ConfigWidget(QWidget):
@@ -74,18 +81,20 @@ class ConfigWidget(QWidget):
             self.profile.setCurrentIndex(self._profile_keys.index(cur))
         form.addRow('Device:', self.profile)
 
-        self.preset = QComboBox(self)
-        for key in PRESET_ORDER:
-            p = PRESETS[key]
-            self.preset.addItem('%s  (quality %d)' % (p.name, p.quality), key)
-        self.preset.setCurrentIndex(PRESET_ORDER.index(current_preset()))
-        form.addRow('Compression:', self.preset)
+        self.target = QComboBox(self)
+        for key in TARGET_ORDER:
+            t = TARGETS[key]
+            self.target.addItem(
+                '%s  (at most %.2f %% of pixels differ)'
+                % (t.name, t.budget), key)
+        self.target.setCurrentIndex(TARGET_ORDER.index(current_target()))
+        form.addRow('Result should look:', self.target)
 
         self.quality = QSpinBox(self)
         self.quality.setRange(0, 100)
         self.quality.setValue(int(prefs['quality'] or 0))
-        self.quality.setSpecialValueText('follow the preset')
-        form.addRow('JPEG quality:', self.quality)
+        self.quality.setSpecialValueText('measure per image')
+        form.addRow('Fixed JPEG quality:', self.quality)
 
         self.fonts = QComboBox(self)
         self.fonts.addItem('Remove', 'strip')
@@ -139,7 +148,7 @@ class ConfigWidget(QWidget):
 
     def save_settings(self):
         prefs['profile'] = self.profile.currentData()
-        prefs['preset'] = self.preset.currentData()
+        prefs['target'] = self.target.currentData()
         prefs['quality'] = self.quality.value()
         prefs['fonts'] = self.fonts.currentData()
         prefs['png_mode'] = self.png_mode.currentData()

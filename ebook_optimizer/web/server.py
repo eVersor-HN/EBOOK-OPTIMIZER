@@ -25,9 +25,11 @@ from ..core.cbz import COMIC_EXT
 from ..core.imaging import backend_name
 from ..core.pipeline import process, target_name
 from ..core.pool import default_jobs
-from ..core.profiles import (DEFAULT_PRESET, DEFAULT_PROFILE, PRESET_ORDER,
-                             PRESETS, get_profile, profiles_by_brand)
+from ..core.profiles import (DEFAULT_PROFILE, DEFAULT_TARGET, TARGET_ORDER,
+                             TARGETS, get_profile, profiles_by_brand)
 from ..core.util import ext_of, pct_saved
+
+from .. import __version__ as VERSION
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 NATIVE_EXT = {'.epub', '.kepub'} | COMIC_EXT
@@ -59,6 +61,7 @@ def known_ext(scanning=False):
 
 def status():
     return {
+        'version': VERSION,
         'calibre': bool(conv.available()),
         'calibreVersion': conv.version(),
         'backend': backend_name(),
@@ -70,13 +73,13 @@ def status():
                          for p in group]}
             for brand, group in profiles_by_brand()],
         'defaultProfile': DEFAULT_PROFILE,
-        'presets': [{'key': PRESETS[k].key, 'name': PRESETS[k].name,
-                     'quality': PRESETS[k].quality,
-                     'quantize': PRESETS[k].quantize,
-                     'summary': PRESETS[k].summary,
-                     'measured': PRESETS[k].measured}
-                    for k in PRESET_ORDER],
-        'defaultPreset': DEFAULT_PRESET,
+        'targets': [{'key': TARGETS[k].key, 'name': TARGETS[k].name,
+                     'budget': TARGETS[k].budget,
+                     'quantize': TARGETS[k].quantize,
+                     'summary': TARGETS[k].summary,
+                     'measured': TARGETS[k].measured}
+                    for k in TARGET_ORDER],
+        'defaultTarget': DEFAULT_TARGET,
         'formats': (sorted(set(conv.output_formats()) | {'cbz'})
                     if conv.available() else ['cbz', 'epub', 'kepub']),
         'nativeFormats': ['epub', 'kepub', 'cbz'],
@@ -238,7 +241,8 @@ def _worker(job_id, files, opts):
             tmp = root + '.ebook_opt_tmp' + extn
             res = process(
                 src, tmp, profile, target_fmt=fmt,
-                quality=int(opts.get('quality', 80)),
+                quality=int(opts.get('quality') or 80),
+                target_error=opts.get('targetError'),
                 png_mode=png_mode,
                 fonts='keep' if opts.get('keepFonts') else 'strip',
                 force_grayscale=False if opts.get('keepColor') else None,

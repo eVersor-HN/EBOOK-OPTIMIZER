@@ -171,7 +171,8 @@ def _new_comicinfo():
 
 def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
                    manga=False, to_jpeg='auto', quantize_gray=True,
-                   skip_smaller_than=2048, progressive=True, jobs=1):
+                   skip_smaller_than=2048, progressive=True, jobs=1,
+                   target_error=None):
     """Optimise a comic archive; the output is always CBZ.
 
     jobs: process pages in parallel (1 = serial).
@@ -194,7 +195,8 @@ def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
                          png_to_jpeg=to_jpeg,
                          force_grayscale=force_grayscale,
                          quantize_gray=quantize_gray,
-                         progressive=progressive)
+                         progressive=progressive,
+                         target_error=target_error)
 
     out_entries = []
     used = set()

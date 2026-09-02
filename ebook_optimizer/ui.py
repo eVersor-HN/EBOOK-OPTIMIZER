@@ -11,7 +11,7 @@ from calibre.gui2.threaded_jobs import ThreadedJob
 
 from calibre_plugins.ebook_optimizer.config import (
     PNG_MODE_ARG, current_png_mode, effective_quality, effective_quantize,
-    prefs)
+    effective_target_error, prefs)
 from calibre_plugins.ebook_optimizer.core.cbz import optimize_comic
 from calibre_plugins.ebook_optimizer.core.epub import optimize_epub
 from calibre_plugins.ebook_optimizer.core.profiles import get_profile
@@ -29,7 +29,8 @@ def _run(book_ids, db, opts, log, abort, notifications):
     # Deliberately serial inside Calibre: a process pool is unreliable in
     # embedded Python environments, and the job already runs off the UI
     # thread. The speed here comes from draft() decoding.
-    common = dict(progressive=opts['progressive'], jobs=1)
+    common = dict(progressive=opts['progressive'], jobs=1,
+                  target_error=opts['target_error'])
     results = []
     total = len(book_ids)
 
@@ -116,7 +117,8 @@ class EbookOptimizerAction(InterfaceAction):
             'profile', 'fonts', 'keep_color', 'manga', 'progressive',
             'add_as_format', 'replace_original')}
         opts['png_mode'] = current_png_mode()
-        opts['quality'] = effective_quality()
+        opts['quality'] = effective_quality() or 80
+        opts['target_error'] = effective_target_error()
         opts['quantize'] = effective_quantize()
 
         job = ThreadedJob(

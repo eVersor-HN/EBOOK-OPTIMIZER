@@ -99,7 +99,8 @@ def _patch_opf(text, renames, removed):
 
 def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                   fonts='strip', force_grayscale=None, quantize_gray=True,
-                  skip_smaller_than=4096, progressive=True, jobs=1):
+                  skip_smaller_than=4096, progressive=True, jobs=1,
+                  target_error=None):
     """Optimise an EPUB file.
 
     fonts: 'strip' to remove them, 'keep' to leave them in place.
@@ -157,7 +158,8 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
         # --- Optimise the images, across cores where possible ------------
         done = {}
         common = dict(quality=quality, force_grayscale=force_grayscale,
-                      quantize_gray=quantize_gray, progressive=progressive)
+                      quantize_gray=quantize_gray, progressive=progressive,
+                      target_error=target_error)
         done.update(optimize_many(
             [it for it in to_opt if it[0] not in keep_fmt], profile,
             jobs=jobs, png_to_jpeg=png_to_jpeg, **common))

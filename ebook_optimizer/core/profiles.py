@@ -127,58 +127,53 @@ def get_profile(key):
             % (key, ', '.join(sorted(PROFILES))))
 
 
-# --------------------------------------------------------------- Presets ---
+# -------------------------------------------------------- Quality targets ---
 
 @dataclass(frozen=True)
-class Preset:
+class QualityTarget:
     key: str
     name: str
-    quality: int
+    budget: float           # max share of visibly wrong pixels, per cent
     quantize: bool
-    summary: str            # what it does, in one line
-    measured: str           # what the measurements actually showed
+    summary: str
+    measured: str
 
 
-# The numbers below were measured on five representative images - a colour
-# comic page, a greyscale manga page, a webtoon strip, a watercolour plate
-# and an 1897 halftone scan - each scaled to a 1072x1448 panel.
+# A fixed JPEG quality is the wrong tool. Measured over comic pages, manga
+# pages, webtoon strips, watercolour plates, halftone scans from 1897 and an
+# illustrated novel, the quality needed to look untouched on a 16-level panel
+# ranges from 45 to 85 depending only on the image. Quality 80 wastes 40 % on
+# a flat watercolour plate and is not enough for a detailed halftone page.
 #
-# "Visibly wrong pixels" counts pixels that land two or more grey levels
-# away from the reference once both are reduced to the 16 levels an e-ink
-# panel can display. A single level of difference is the smallest possible
-# step and is not counted, because it cannot be seen.
-PRESETS = {
-    'maximum': Preset(
-        key='maximum', name='Maximum quality', quality=90, quantize=False,
-        summary='Largest files. Use when the source is precious.',
-        measured='25-60 % larger than balanced, with no measurable '
-                 'difference on the panel.'),
-    'balanced': Preset(
-        key='balanced', name='Balanced', quality=80, quantize=True,
-        summary='The default. Big savings, nothing visible on an e-ink panel.',
-        measured='At most 0.09 % of pixels differ visibly; on most pages '
-                 'far less.'),
-    'small': Preset(
-        key='small', name='Small', quality=70, quantize=True,
-        summary='Noticeably smaller files, still hard to tell apart.',
-        measured='19-36 % smaller than balanced. Up to 0.41 % of pixels '
-                 'differ visibly, worst on fine halftone artwork.'),
-    'smallest': Preset(
-        key='smallest', name='Smallest', quality=60, quantize=True,
-        summary='For fitting a large library on a small device.',
-        measured='32-42 % smaller than balanced. Up to 0.82 % of pixels '
-                 'differ visibly - noticeable on detailed artwork, fine '
-                 'for text-heavy scans.'),
+# So the quality is not fixed here. Each image is encoded a few times and the
+# lowest quality that stays within the budget below is kept. "Visibly wrong"
+# means a pixel lands two or more grey levels away once reduced to the 16
+# levels an e-ink panel can display; one level is the smallest step the panel
+# can make and does not count.
+TARGETS = {
+    'identical': QualityTarget(
+        key='identical', name='Looks the same',
+        budget=0.10, quantize=True,
+        summary='Indistinguishable on the device. The safe default.',
+        measured='Each image is measured; quality lands between 45 and 85. '
+                 'About 7 % smaller than a fixed quality of 80, and every '
+                 'image meets the same bar rather than the same number.'),
+    'smaller': QualityTarget(
+        key='smaller', name='Clearly smaller',
+        budget=0.75, quantize=True,
+        summary='A touch softer on close inspection, much smaller files.',
+        measured='Allows up to 0.75 % of pixels to differ visibly. Detailed '
+                 'artwork softens slightly; text and line art do not.'),
 }
 
-PRESET_ORDER = ['maximum', 'balanced', 'small', 'smallest']
-DEFAULT_PRESET = 'balanced'
+TARGET_ORDER = ['identical', 'smaller']
+DEFAULT_TARGET = 'identical'
 
 
-def get_preset(key):
+def get_target(key):
     try:
-        return PRESETS[key]
+        return TARGETS[key]
     except KeyError:
         raise ValueError(
-            'Unknown preset %r. Available: %s'
-            % (key, ', '.join(PRESET_ORDER)))
+            'Unknown quality target %r. Available: %s'
+            % (key, ', '.join(TARGET_ORDER)))

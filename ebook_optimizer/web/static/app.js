@@ -5,11 +5,17 @@
 
 const $ = (id) => document.getElementById(id);
 
+// Bumped whenever the page needs a server feature that older builds do
+// not have. The server serves these files straight from disk, so an
+// already running process can hand out a new page while its own Python
+// is still the old one - which looks exactly like a dead button.
+const NEEDS_VERSION = '0.4.0';
+
 const STATE = {
   cwd: '',
   selection: [],      // {path, name, size}
   status: null,
-  preset: null,       // active preset key, or null when set manually
+  target: 'identical',   // active quality target
   jobId: null,
   poll: null,
   rendered: 0,
@@ -25,6 +31,15 @@ function human(n) {
   let v = Number(n);
   while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; }
   return (i === 0 ? v.toFixed(0) : v.toFixed(1)) + ' ' + u[i];
+}
+
+function notify(msg, stop) {
+  const el = $('staleWarn');
+  el.hidden = false;
+  el.className = stop ? 'banner banner-stop' : 'banner';
+  el.innerHTML = '<strong>' + (stop ? 'Problem:' : 'Note:')
+    + '</strong><span>' + esc(msg) + '</span>';
+  el.scrollIntoView({ block: 'nearest' });
 }
 
 function esc(s) {
@@ -74,19 +89,19 @@ async function loadStatus() {
     + '</optgroup>').join('');
   showProfileHint();
 
-  // Presets
-  $('presets').innerHTML = s.presets.map((p) =>
-    '<button type="button" class="preset" data-key="' + p.key
-    + '" data-quality="' + p.quality + '" data-quantize="' + p.quantize + '">'
-    + '<span class="pname">' + esc(p.name)
-    + ' <span class="pq">q' + p.quality + '</span></span>'
-    + '<span class="psum">' + esc(p.summary) + '</span>'
-    + '<span class="pmeas">' + esc(p.measured) + '</span>'
+  // Quality targets
+  $('presets').innerHTML = s.targets.map((t) =>
+    '<button type="button" class="preset" data-key="' + t.key
+    + '" data-budget="' + t.budget + '" data-quantize="' + t.quantize + '">'
+    + '<span class="pname">' + esc(t.name)
+    + ' <span class="pq">max ' + t.budget.toFixed(2) + ' %</span></span>'
+    + '<span class="psum">' + esc(t.summary) + '</span>'
+    + '<span class="pmeas">' + esc(t.measured) + '</span>'
     + '</button>').join('');
   Array.prototype.forEach.call(
     document.querySelectorAll('.preset'),
-    (b) => { b.onclick = () => choosePreset(b.dataset.key); });
-  choosePreset(s.defaultPreset);
+    (b) => { b.onclick = () => chooseTarget(b.dataset.key); });
+  chooseTarget(s.defaultTarget);
 
   // Output formats
   const native = new Set(s.nativeFormats);
@@ -96,6 +111,13 @@ async function loadStatus() {
       + (native.has(f) ? '' : ' (needs Calibre)') + '</option>').join('');
 
   $('jobs').value = s.cpus;
+
+  if (s.version !== NEEDS_VERSION) {
+    notify('The server is running version ' + (s.version || 'unknown')
+      + ' while this page expects ' + NEEDS_VERSION
+      + '. Close the server window and start it again - otherwise some\n'
+      + ' buttons will do nothing.', true);
+  }
 }
 
 function showProfileHint() {
@@ -110,29 +132,13 @@ function showProfileHint() {
       + ' and keep their colour.';
 }
 
-function choosePreset(key) {
-  STATE.preset = key;
-  let q = null;
-  let quant = true;
+function chooseTarget(key) {
+  STATE.target = key;
   Array.prototype.forEach.call(document.querySelectorAll('.preset'), (b) => {
     const on = b.dataset.key === key;
     b.classList.toggle('on', on);
-    if (on) {
-      q = Number(b.dataset.quality);
-      quant = b.dataset.quantize === 'true';
-    }
+    if (on) $('noQuantize').checked = b.dataset.quantize !== 'true';
   });
-  if (q !== null) {
-    $('quality').value = q;
-    $('qOut').value = q;
-    $('noQuantize').checked = !quant;
-  }
-}
-
-function clearPreset() {
-  STATE.preset = null;
-  Array.prototype.forEach.call(document.querySelectorAll('.preset'),
-    (b) => b.classList.remove('on'));
 }
 
 /* ------------------------------------------------------------- Browser */
@@ -249,12 +255,18 @@ function renderSelection() {
 
 /* ----------------------------------------------------------------- Run */
 
+function currentBudget() {
+  const b = document.querySelector('.preset.on');
+  return b ? Number(b.dataset.budget) : 0.10;
+}
+
 function collectOpts() {
   return {
     profile: $('profile').value,
     format: $('format').value,
     outDir: $('outDir').value.trim(),
-    quality: Number($('quality').value),
+    quality: $('fixedQuality').checked ? Number($('quality').value) : null,
+    targetError: $('fixedQuality').checked ? null : currentBudget(),
     pngMode: $('pngMode').value,
     jobs: Number($('jobs').value),
     keepColor: $('keepColor').checked,
@@ -379,14 +391,14 @@ async function pickWith(mode) {
       });
       renderSelection();
       if (d.paths.length) {
-        await browse(d.paths[0].replace(/[\/][^\/]+$/, ''));
+        await browse(d.paths[0].replace(/[\\/][^\\/]+$/, ''));
       }
     } else {
       await browse(d.paths[0]);
       await useFolder();
     }
   } catch (e) {
-    $('runInfo').textContent = e.message;
+    notify('The file dialog could not be opened: ' + e.message, true);
   } finally {
     btn.disabled = false;
     btn.textContent = label;
@@ -408,11 +420,10 @@ $('clearSel').onclick = () => {
     (li) => li.classList.remove('picked'));
 };
 $('profile').onchange = showProfileHint;
-$('quality').oninput = (e) => {
-  $('qOut').value = e.target.value;
-  clearPreset();
+$('quality').oninput = (e) => { $('qOut').value = e.target.value; };
+$('fixedQuality').onchange = (e) => {
+  $('qualityRow').hidden = !e.target.checked;
 };
-$('noQuantize').onchange = clearPreset;
 $('runBtn').onclick = run;
 $('cancelBtn').onclick = () => api('/api/cancel', { id: STATE.jobId });
 $('openOut').onclick = async () => {

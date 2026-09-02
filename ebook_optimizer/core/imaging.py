@@ -22,6 +22,7 @@ class ImageResult:
     height: int
     changed: bool           # False = original kept (no gain, or skipped)
     reason: str = ''        # why it was skipped
+    quality: int = 0        # JPEG quality actually used, 0 if not JPEG
 
 
 # Beyond this multiple of the screen ratio an image counts as a long
@@ -67,7 +68,8 @@ def _pillow_available():
 
 
 def _pil_optimize(data, profile, quality, png_to_jpeg, force_grayscale,
-                  quantize_gray, upscale=False, progressive=True):
+                  quantize_gray, upscale=False, progressive=True,
+                  target_error=None):
     Image = _pillow()
     try:
         im = Image.open(io.BytesIO(data))
@@ -132,10 +134,16 @@ def _pil_optimize(data, profile, quality, png_to_jpeg, force_grayscale,
 
     best = None
     jpeg_size = None
+    used_quality = quality
     for fmt in candidates:
         try:
             if fmt == 'JPEG':
-                cand = _encode_jpeg(im, quality, to_gray, progressive)
+                if target_error:
+                    chosen, cand = _find_quality(im, target_error, to_gray,
+                                                 progressive)
+                    used_quality = chosen
+                else:
+                    cand = _encode_jpeg(im, quality, to_gray, progressive)
                 jpeg_size = len(cand)
             elif fmt == 'PNG':
                 if both and jpeg_size is not None:
@@ -168,7 +176,60 @@ def _pil_optimize(data, profile, quality, png_to_jpeg, force_grayscale,
     # changed along the way.
     if len(out) >= len(data):
         return ImageResult(data, src_fmt, ow, oh, False, 'no gain')
-    return ImageResult(out, out_fmt, im.width, im.height, True)
+    return ImageResult(out, out_fmt, im.width, im.height, True,
+                       quality=used_quality if out_fmt == 'JPEG' else 0)
+
+
+# An e-ink panel resolves 16 grey levels, so a difference smaller than
+# one level cannot be seen at all. Errors are counted as pixels landing
+# TWO or more levels away from the reference - a single level is the
+# smallest step the panel can make.
+PANEL_LEVELS = 16
+_LEVEL_STEP = 256 // PANEL_LEVELS
+
+
+def _to_levels(im):
+    return im.point(lambda v: v // _LEVEL_STEP)
+
+
+def visible_error(ref_levels, decoded):
+    """Share of pixels (per cent) that differ visibly on the panel."""
+    from PIL import ImageChops
+    diff = ImageChops.difference(ref_levels, _to_levels(decoded))
+    h = diff.histogram()
+    total = sum(h)
+    if not total:
+        return 0.0
+    return (total - h[0] - h[1]) / float(total) * 100.0
+
+
+def _find_quality(im, budget, to_gray, progressive, lo=45, hi=88):
+    """Lowest JPEG quality whose visible error stays within the budget.
+
+    A fixed quality is always wrong for some images: detailed halftone
+    artwork needs more than 80 to look untouched, while a flat watercolour
+    plate looks identical at 45 and wastes half its bytes at 80. Searching
+    per image costs about three extra encodes and gives every image the
+    same visible result instead of the same number.
+    """
+    Image = _pillow()
+    ref = _to_levels(im if im.mode == 'L' else im.convert('L'))
+    best = None
+    a, b = lo, hi
+    while a <= b:
+        mid = max(lo, min(hi, (((a + b) // 2) // 5) * 5))
+        data = _encode_jpeg(im, mid, to_gray, progressive)
+        dec = Image.open(io.BytesIO(data)).convert('L')
+        if visible_error(ref, dec) <= budget:
+            best = (mid, data)
+            b = mid - 5
+        else:
+            a = mid + 5
+        if b < lo or a > hi:
+            break
+    if best is None:
+        return hi, _encode_jpeg(im, hi, to_gray, progressive)
+    return best
 
 
 def _encode_jpeg(im, quality, to_gray, progressive):
@@ -230,7 +291,8 @@ def _qt_available():
 
 
 def _qt_optimize(data, profile, quality, png_to_jpeg, force_grayscale,
-                 quantize_gray, upscale=False, progressive=True):
+                 quantize_gray, upscale=False, progressive=True,
+                 target_error=None):
     """Fallback through calibre.utils.img (QImage).
 
     Only used when Pillow is missing from the Calibre environment.
@@ -275,7 +337,7 @@ def backend_name():
 
 def optimize_image(data, profile, quality=80, png_to_jpeg=False,
                    force_grayscale=None, quantize_gray=True, upscale=False,
-                   progressive=True):
+                   progressive=True, target_error=None):
     """Optimise a single image for the target device.
 
     force_grayscale: None = let the profile decide, True/False = force it.
@@ -290,7 +352,7 @@ def optimize_image(data, profile, quality=80, png_to_jpeg=False,
         return ImageResult(data, '', 0, 0, False, 'no image backend available')
     try:
         return fn(data, profile, quality, png_to_jpeg, force_grayscale,
-                  quantize_gray, upscale, progressive)
+                  quantize_gray, upscale, progressive, target_error)
     except Exception as e:
         return ImageResult(data, '', 0, 0, False, 'error: %s' % e)
 

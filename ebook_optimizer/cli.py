@@ -17,8 +17,8 @@ from .core.cbz import COMIC_EXT
 from .core.imaging import backend_name
 from .core.pipeline import process, target_name
 from .core.pool import default_jobs
-from .core.profiles import (DEFAULT_PRESET, DEFAULT_PROFILE, PRESET_ORDER,
-                            PRESETS, get_preset, get_profile,
+from .core.profiles import (DEFAULT_PROFILE, DEFAULT_TARGET, TARGET_ORDER,
+                            TARGETS, get_profile, get_target,
                             profiles_by_brand)
 from .core.util import ext_of, human_size, pct_saved
 
@@ -101,17 +101,20 @@ def build_parser():
                     default=DEFAULT_PROFILE, metavar='DEVICE',
                     help='target device (default %s). --list-devices shows '
                          'them all.' % DEFAULT_PROFILE)
-    ap.add_argument('-c', '--preset', choices=PRESET_ORDER,
-                    default=DEFAULT_PRESET,
-                    help='how hard to compress (default %s). --list-presets '
-                         'explains each one.' % DEFAULT_PRESET)
+    ap.add_argument('-c', '--target', choices=TARGET_ORDER,
+                    default=DEFAULT_TARGET,
+                    help='how the result should look (default %s). The '
+                         'quality is then measured per image instead of '
+                         'fixed. --list-targets explains it.'
+                         % DEFAULT_TARGET)
     ap.add_argument('-t', '--to', metavar='FORMAT',
                     help='output format, e.g. epub, kepub, azw3, mobi, pdf, '
                          'cbz. Without it the format is kept; comics always '
                          'become CBZ. Anything but epub/kepub/cbz needs '
                          'Calibre.')
     ap.add_argument('-q', '--quality', type=int, metavar='1-100',
-                    help='JPEG quality, overrides the preset')
+                    help='pin a fixed JPEG quality and switch the per-image '
+                         'measurement off')
     ap.add_argument('-r', '--recursive', action='store_true',
                     help='walk sub-folders')
     ap.add_argument('-o', '--out-dir',
@@ -145,8 +148,8 @@ def build_parser():
 
     ap.add_argument('--list-devices', action='store_true',
                     help='list device profiles and exit')
-    ap.add_argument('--list-presets', action='store_true',
-                    help='explain the compression presets and exit')
+    ap.add_argument('--list-targets', action='store_true',
+                    help='explain the quality targets and exit')
     ap.add_argument('--list-formats', action='store_true',
                     help='list available output formats and exit')
     return ap
@@ -163,19 +166,24 @@ def print_devices():
         print()
 
 
-def print_presets():
-    print('Compression presets - use the key with --preset:\n')
-    for key in PRESET_ORDER:
-        p = PRESETS[key]
-        mark = '   (default)' if key == DEFAULT_PRESET else ''
-        print('  %-10s quality %d%s' % (p.key, p.quality, mark))
-        print('    %s' % p.summary)
-        print('    %s' % p.measured)
+def print_targets():
+    print('Quality targets - use the key with --target:\n')
+    for key in TARGET_ORDER:
+        t = TARGETS[key]
+        mark = '   (default)' if key == DEFAULT_TARGET else ''
+        print('  %-10s at most %.2f %% of pixels differ visibly%s'
+              % (t.key, t.budget, mark))
+        print('    %s' % t.summary)
+        print('    %s' % t.measured)
         print()
-    print('  Measured on a colour comic page, a greyscale manga page, a')
-    print('  webtoon strip, a watercolour plate and an 1897 halftone scan.')
-    print('  "Visibly different" means a pixel lands two or more grey levels')
+    print('  There is no fixed quality behind these. Each image is encoded a')
+    print('  few times and the lowest quality that still meets the target is')
+    print('  kept, because the quality an image actually needs ranges from 45')
+    print('  to 85 depending entirely on the image.')
+    print('  "Differs visibly" means a pixel lands two or more grey levels')
     print('  away once reduced to the 16 levels an e-ink panel can show.')
+    print('')
+    print('  Use --quality N instead to pin one fixed quality.')
 
 
 def print_formats():
@@ -196,8 +204,8 @@ def main(argv=None):
     if args.list_devices:
         print_devices()
         return 0
-    if args.list_presets:
-        print_presets()
+    if args.list_targets:
+        print_targets()
         return 0
     if args.list_formats:
         print_formats()
@@ -207,16 +215,21 @@ def main(argv=None):
 
     try:
         profile = get_profile(args.profile)
-        preset = get_preset(args.preset)
+        target = get_target(args.target)
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2
 
-    # Explicit switches win over the preset.
-    quality = args.quality if args.quality is not None else preset.quality
-    if not 1 <= quality <= 100:
-        ap.error('--quality must be between 1 and 100')
-    quantize = preset.quantize and not args.no_quantize
+    # A fixed --quality switches the per-image measurement off.
+    if args.quality is not None:
+        if not 1 <= args.quality <= 100:
+            ap.error('--quality must be between 1 and 100')
+        quality = args.quality
+        target_error = None
+    else:
+        quality = 80              # only a fallback for formats without search
+        target_error = target.budget
+    quantize = target.quantize and not args.no_quantize
 
     target_fmt = args.to.lstrip('.').lower() if args.to else None
     if target_fmt and target_fmt not in ('epub', 'kepub', 'cbz') \
@@ -235,9 +248,10 @@ def main(argv=None):
     print('Device : %s (%dx%d, %s)'
           % (profile.label, profile.width, profile.height,
              'greyscale' if profile.grayscale else 'colour'))
-    print('Preset : %s, quality %d%s'
-          % (preset.name, quality,
-             '' if args.quality is None else ' (overridden)'))
+    print('Quality: %s'
+          % ('fixed at %d' % quality if target_error is None
+             else '%s, measured per image (at most %.2f %% of pixels differ)'
+                  % (target.name, target.budget)))
     print('Target : %s' % (target_fmt or 'keep original format'))
     print('Calibre: %s' % (conv.version()
                            or 'not found - epub/kepub/cbz only'))
@@ -269,7 +283,7 @@ def main(argv=None):
                 src, tmp, profile, target_fmt=fmt,
                 quality=quality, png_mode=png_mode, fonts=args.fonts,
                 force_grayscale=force_gray, manga=args.manga,
-                quantize_gray=quantize,
+                quantize_gray=quantize, target_error=target_error,
                 progressive=not args.no_progressive, jobs=args.jobs)
             detail = rep.detail
             if rep.converted_from:
@@ -296,9 +310,10 @@ def main(argv=None):
               % (os.path.basename(src)[:45], human_size(rep.old_size),
                  human_size(rep.new_size),
                  -pct_saved(rep.old_size, rep.new_size), detail))
-        if args.verbose:
-            for n in rep.notes[:5]:
-                print('      ! %s' % n)
+        # Losing every image is not a detail; say it even without -v.
+        loud = [n for n in rep.notes if 'image' in n or 'images' in n]
+        for n in (rep.notes[:5] if args.verbose else loud[:2]):
+            print('      ! %s' % n)
 
         if args.dry_run:
             os.remove(tmp)

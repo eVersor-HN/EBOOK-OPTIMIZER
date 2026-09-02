@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.1.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.2.zip` — SHA-256:**
 
 ```
-e7f28d3b0e6a314f423d75464a100570dd98101b0efda4f87a15614867999f32
+4a8f36792b7155b99f6e80bf7620c1636de7731955834ff213a3b0459eb5e136
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.1.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.2.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.1.zip    sha256sum EBOOK-OPTIMIZER-0.4.1.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.2.zip    sha256sum EBOOK-OPTIMIZER-0.4.2.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -346,10 +346,10 @@ Worth knowing before you point this at a library of several thousand files:
   display, use `--no-progressive`.
 - **`--in-place` keeps numbered `.bak` files** and never overwrites an existing one, but that is
   not a substitute for a real backup.
-- **The Calibre plugin has not run inside a real Calibre yet.** `test_calibre_stub.py` exercises
-  the plugin code against stand-in Calibre APIs, which catches import, naming and logic errors
-  but cannot confirm that Calibre's own APIs behave as assumed. Please
-  [open an issue](https://github.com/eVersor-HN/EBOOK-OPTIMIZER/issues) if loading it fails.
+- **The Calibre plugin loads and registers in a real Calibre** (verified on Calibre 9.14,
+  Windows). The toolbar action itself is covered by `test_calibre_stub.py` against stand-in
+  Calibre APIs. Please
+  [open an issue](https://github.com/eVersor-HN/EBOOK-OPTIMIZER/issues) if anything misbehaves.
 - **`@font-face` detection uses a regular expression.** Nested blocks are vanishingly rare in
   practice but would be a blind spot.
 - **The Qt image backend is untested.** It only comes into play if Calibre ships without Pillow,

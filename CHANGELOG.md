@@ -4,6 +4,19 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.2 · 2026-09-02
+
+- **The Calibre plugin is confirmed to load in a real Calibre** (9.14, Windows). Until now that
+  was only covered by tests against stand-in APIs.
+- **New device matrix test** (`test_devices.py`): all 36 device profiles run through EPUB and CBZ
+  optimisation with the results opened and validated, through an AZW3 conversion exercising every
+  per-brand Calibre profile mapping, through both quality targets and a pinned quality, and
+  through the CBZ, CBT and CB7 comic containers. Everything passes.
+- Writing that test pinned down one deliberate subtlety of the contract: when every re-encode of
+  an image would be larger than the source, the untouched original is kept even if it exceeds the
+  panel. That honours the size promise and is visually optimal - the reader scales at display
+  time. The test now asserts exactly this.
+
 ## 0.4.1 · 2026-09-02
 
 - **CB7 comics actually work now.** The README claimed CB7 support but the comic scanner never

@@ -1,11 +1,11 @@
-"""Formatkonvertierung ueber Calibres ebook-convert.
+"""Format conversion through Calibre's ebook-convert.
 
-Bewusste Arbeitsteilung: Calibre konvertiert, wir optimieren. Calibres
-Konverter deckt rund 50 Eingabe- und 20 Ausgabeformate ab und ist seit
-Jahren im Feld erprobt - das nachzubauen waere Aufwand ohne Gewinn.
+A deliberate division of labour: Calibre converts, we optimise. Its
+converter covers around 50 input and 20 output formats and has been in
+the field for years - reimplementing that would be effort without gain.
 
-Ohne Calibre laeuft alles Uebrige weiter; nur die Konvertierung faellt
-dann mit einer klaren Meldung aus, statt den Lauf abzubrechen.
+Without Calibre everything else keeps working; only conversion drops
+out, with a clear message rather than a failed run.
 """
 
 import os
@@ -16,11 +16,11 @@ import sys
 CONVERTER = 'ebook-convert'
 DEBUGGER = 'calibre-debug'
 
-# Wird beim ersten Aufruf gefuellt.
+# Filled on first use.
 _cache = {}
 
-# Rueckfalliste, falls Calibre sich nicht befragen laesst. Entspricht dem
-# Stand von Calibre 9; die echte Liste wird zur Laufzeit abgefragt.
+# Fallback lists, used when Calibre cannot be queried. They match
+# Calibre 9; the real lists are read at runtime.
 FALLBACK_OUTPUT = ('azw3', 'docx', 'epub', 'fb2', 'htmlz', 'kepub', 'lit',
                    'lrf', 'mobi', 'oeb', 'pdb', 'pdf', 'pmlz', 'rb', 'rtf',
                    'snb', 'tcr', 'txt', 'txtz', 'zip')
@@ -31,7 +31,7 @@ FALLBACK_INPUT = ('azw', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm',
                   'pdf', 'pml', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tcr',
                   'txt', 'txtz', 'xhtml', 'zip')
 
-# Was auf dem jeweiligen Geraet am besten laeuft.
+# The format that works best on each device.
 DEVICE_FORMAT = {
     'pb_verse_pro': 'epub',
     'pb_verse': 'epub',
@@ -40,15 +40,15 @@ DEVICE_FORMAT = {
     'generic_6in_300ppi': 'epub',
 }
 
-# Diese Formate koennen wir nach der Konvertierung noch selbst anfassen.
+# Formats we can still work on after conversion.
 OPTIMIZABLE = {'epub', 'kepub', 'cbz'}
 
-# Comicformate gehen einen eigenen Weg (siehe core.cbz).
+# Comic formats take their own path, see core.cbz.
 COMIC_IN = {'cbz', 'cbr', 'cbt', 'cb7'}
 
 
 class CalibreMissing(RuntimeError):
-    """Calibre wird gebraucht, ist aber nicht auffindbar."""
+    """Calibre is required here but could not be found."""
 
 
 def _candidate_dirs():
@@ -65,7 +65,7 @@ def _candidate_dirs():
 
 
 def _find(tool):
-    """Sucht ein Calibre-Werkzeug im PATH und an den ueblichen Orten."""
+    """Look for a Calibre tool on PATH and in the usual locations."""
     found = shutil.which(tool)
     if found:
         return found
@@ -84,12 +84,12 @@ def converter_path():
 
 
 def available():
-    """Ist Calibre benutzbar?"""
+    """Is Calibre usable?"""
     return converter_path() is not None
 
 
 def version():
-    """Calibre-Version als Text, oder None."""
+    """Calibre version as text, or None."""
     exe = converter_path()
     if not exe:
         return None
@@ -105,19 +105,19 @@ def version():
 def _run(args, timeout=1800):
     kw = {}
     if sys.platform == 'win32':
-        # Kein aufblitzendes Konsolenfenster, wenn wir aus einer GUI kommen.
+        # No console window flashing up when called from a GUI.
         kw['creationflags'] = 0x08000000       # CREATE_NO_WINDOW
     proc = subprocess.run(args, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, timeout=timeout, **kw)
     out = (proc.stdout or b'').decode('utf-8', 'replace')
     if proc.returncode != 0:
-        raise RuntimeError('ebook-convert scheiterte (Code %d):\n%s'
+        raise RuntimeError('ebook-convert failed with code %d:\n%s'
                            % (proc.returncode, out[-1500:]))
     return out
 
 
 def _query_formats():
-    """Fragt die echten Formatlisten bei Calibre ab."""
+    """Ask Calibre for its actual format lists."""
     dbg = _find(DEBUGGER)
     if not dbg:
         return None
@@ -139,7 +139,7 @@ def _query_formats():
 
 
 def formats():
-    """(Eingabeformate, Ausgabeformate) - live abgefragt, sonst Rueckfall."""
+    """(input formats, output formats) - queried live, else the fallback."""
     if 'formats' not in _cache:
         got = _query_formats() if available() else None
         if got:
@@ -159,22 +159,21 @@ def input_formats():
 
 
 def convert(src, dst, profile=None, extra_args=None, timeout=1800):
-    """Konvertiert eine Datei mit Calibre.
+    """Convert a file with Calibre.
 
-    profile: DeviceProfile - setzt Bildschirmgroesse und Ausgabeprofil,
-             damit Calibre nicht auf Verdacht skaliert.
+    profile: DeviceProfile - sets the output profile so Calibre does not
+             rescale on its own guesswork.
     """
     exe = converter_path()
     if not exe:
         raise CalibreMissing(
-            'Fuer die Formatkonvertierung wird Calibre benoetigt, es wurde '
-            'aber nicht gefunden. Installiere Calibre von '
-            'https://calibre-ebook.com und starte den Vorgang erneut. '
-            'Das Verkleinern von EPUB und Comics funktioniert auch ohne.')
+            'Format conversion needs Calibre, which was not found. Install '
+            'it from https://calibre-ebook.com and try again. Optimising '
+            'EPUB, KEPUB and CBZ works without it.')
 
     args = [exe, src, dst]
     if profile is not None:
-        # Calibre soll Bilder nicht zusaetzlich anfassen - das machen wir.
+        # Calibre should not touch the images as well - that is our job.
         args += ['--output-profile', _calibre_profile(profile)]
     if extra_args:
         args += list(extra_args)
@@ -183,7 +182,7 @@ def convert(src, dst, profile=None, extra_args=None, timeout=1800):
 
 
 def _calibre_profile(profile):
-    """Uebersetzt unser Geraeteprofil in Calibres Ausgabeprofil."""
+    """Translate our device profile into Calibre's output profile."""
     key = getattr(profile, 'key', '')
     if key.startswith('kobo'):
         return 'kobo'
@@ -193,12 +192,12 @@ def _calibre_profile(profile):
 
 
 def needs_conversion(src_ext, target_fmt):
-    """Muss ueberhaupt konvertiert werden?"""
+    """Is a conversion needed at all?"""
     src = src_ext.lstrip('.').lower()
     tgt = target_fmt.lstrip('.').lower()
     if src == tgt:
         return False
-    # Comic zu Comic laeuft ueber unseren eigenen Weg.
+    # Comic to comic goes through our own path.
     if src in COMIC_IN and tgt == 'cbz':
         return False
     return True

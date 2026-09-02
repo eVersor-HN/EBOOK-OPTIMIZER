@@ -1,8 +1,8 @@
-"""Baut das installierbare Calibre-Plugin-ZIP.
+"""Build the installable Calibre plugin ZIP.
 
-Wichtig: Calibre erwartet __init__.py im WURZELVERZEICHNIS des ZIP,
-nicht in einem Unterordner. Deshalb wird der Inhalt von ebook_optimizer/ gezippt,
-nicht der Ordner selbst.
+Important: Calibre expects __init__.py at the ROOT of the ZIP, not in a
+sub-folder. So the contents of ebook_optimizer/ are zipped, not the
+folder itself.
 """
 
 import os
@@ -34,10 +34,11 @@ def build():
 
 if __name__ == '__main__':
     path, n = build()
-    print('%s  (%d Dateien, %.1f KB)'
+    print('%s  (%d files, %.1f KB)'
           % (path, n, os.path.getsize(path) / 1024))
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
-    assert '__init__.py' in names, '__init__.py fehlt im ZIP-Wurzelverzeichnis'
-    assert 'plugin-import-name-ebook_optimizer.txt' in names, 'Marker-Datei fehlt'
-    print('Struktur ok:', ', '.join(sorted(names)))
+    assert '__init__.py' in names, '__init__.py missing at the ZIP root'
+    assert 'plugin-import-name-ebook_optimizer.txt' in names, \
+        'marker file missing'
+    print('Structure ok:', ', '.join(sorted(names)))

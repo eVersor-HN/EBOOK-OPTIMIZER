@@ -1,9 +1,10 @@
-"""Comic-Optimierung (CBZ / CBR / CBT) fuer E-Ink-Geraete.
+"""Comic optimisation (CBZ / CBR / CBT) for e-ink devices.
 
-  * Seiten auf Panelaufloesung skalieren, Graustufen, als JPEG neu kodieren
-  * CBR/CBT -> CBZ (breiter kompatibel, kein RAR-Entpacker noetig zum Lesen)
-  * ComicInfo.xml bleibt erhalten, optional Manga-Leserichtung setzen
-  * Ausgabe mit ZIP_STORED (JPEGs sind bereits komprimiert)
+  * scale pages to the panel, convert to greyscale, re-encode
+  * CBR/CBT -> CBZ: more widely supported, and no RAR unpacker needed
+    to read the result
+  * ComicInfo.xml is preserved, manga reading direction is optional
+  * written with ZIP_STORED, because JPEGs are already compressed
 """
 
 import os
@@ -58,8 +59,8 @@ def _iter_tar(path):
 
 
 def _iter_rar(path):
-    """CBR entpacken. Reihenfolge der Versuche:
-    rarfile -> calibre.utils.unrar -> externes unrar/7z/bsdtar.
+    """Unpack a CBR. Tried in order:
+    rarfile -> calibre.utils.unrar -> external unrar/7z/bsdtar.
     """
     try:
         import rarfile
@@ -121,8 +122,8 @@ def _iter_rar(path):
             shutil.rmtree(tmp, ignore_errors=True)
 
     raise RuntimeError(
-        'CBR kann nicht entpackt werden: weder das Python-Modul "rarfile" '
-        'noch unrar/7z/bsdtar gefunden.')
+        'Cannot unpack CBR: neither the Python module "rarfile" nor '
+        'unrar/7z/bsdtar was found.')
 
 
 def _read_archive(path):
@@ -171,10 +172,10 @@ def _new_comicinfo():
 def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
                    manga=False, to_jpeg='auto', quantize_gray=True,
                    skip_smaller_than=2048, progressive=True, jobs=1):
-    """Optimiert ein Comic-Archiv, Ausgabe immer als CBZ.
+    """Optimise a comic archive; the output is always CBZ.
 
-    jobs: Seiten parallel verarbeiten (1 = seriell).
-    Rueckgabe: CbzReport
+    jobs: process pages in parallel (1 = serial).
+    Returns a CbzReport.
     """
     rep = CbzReport(src)
     rep.old_size = os.path.getsize(src)
@@ -186,8 +187,8 @@ def optimize_comic(src, dst, profile, quality=80, force_grayscale=None,
     others = [(n, d) for n, d in entries if ext_of(n) not in RASTER_EXT]
     images.sort(key=lambda t: natural_key(t[0]))
 
-    # Seiten in einem Rutsch optimieren - das ist der teure Teil und
-    # laesst sich ueber die CPU-Kerne verteilen.
+    # Optimise all pages in one go - this is the expensive part and it
+    # spreads across CPU cores.
     todo = [(n, d) for n, d in images if len(d) >= skip_smaller_than]
     done = optimize_many(todo, profile, jobs=jobs, quality=quality,
                          png_to_jpeg=to_jpeg,

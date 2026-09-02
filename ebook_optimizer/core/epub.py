@@ -1,11 +1,12 @@
-"""EPUB-Optimierung fuer E-Ink-Geraete.
+"""EPUB optimisation for e-ink devices.
 
-Massnahmen:
-  * Bilder auf Panelaufloesung skalieren, Graustufen, neu kodieren
-  * eingebettete Schriften entfernen (inkl. @font-face und OPF-Manifest)
-  * optional PNG/GIF/WebP -> JPEG inkl. Umschreiben aller Referenzen
+What it does:
+  * scale images to the panel, convert to greyscale, re-encode
+  * remove embedded fonts, including @font-face rules and OPF manifest
+    entries
+  * optionally rewrite PNG/GIF/WebP to JPEG, updating every reference
 
-Struktur und Metadaten bleiben ansonsten unangetastet.
+Structure and metadata are otherwise left alone.
 """
 
 import posixpath
@@ -21,7 +22,7 @@ TEXT_EXT = {'.xhtml', '.html', '.htm', '.xml', '.opf', '.ncx', '.css', '.svg'}
 STORED_EXT = RASTER_EXT | {'.woff', '.woff2'}
 
 FONT_FACE_RE = re.compile(r'@font-face\s*\{[^{}]*\}', re.I | re.S)
-# @font-face mit verschachtelten Bloecken kommt praktisch nicht vor.
+# Nested @font-face blocks essentially do not occur in practice.
 
 
 class EpubReport:
@@ -54,7 +55,7 @@ def _strip_font_faces(text):
 
 
 def _rewrite_refs(text, renames):
-    """Ersetzt alte Dateinamen durch neue in href/src/url()."""
+    """Replace old file names with new ones in href/src/url()."""
     for old, new in renames.items():
         o = posixpath.basename(old)
         n = posixpath.basename(new)
@@ -65,15 +66,15 @@ def _rewrite_refs(text, renames):
 
 
 def _patch_opf(text, renames, removed):
-    """Manifest anpassen: Fonts entfernen, umbenannte Bilder korrigieren."""
-    # Entfernte Eintraege loeschen (item-Tag als Ganzes).
+    """Update the manifest: drop fonts, fix renamed images."""
+    # Delete removed entries, the whole <item> tag.
     for href in removed:
         base = re.escape(posixpath.basename(href))
         text = re.sub(
             r'<item\b[^>]*href\s*=\s*["\'][^"\']*' + base + r'["\'][^>]*/?>'
             r'(?:</item>)?',
             '', text, flags=re.I)
-    # Umbenennungen: Dateiname + media-type.
+    # Renames: file name plus media-type.
     for old, new in renames.items():
         ob = re.escape(posixpath.basename(old))
         nb = posixpath.basename(new)
@@ -99,12 +100,12 @@ def _patch_opf(text, renames, removed):
 def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                   fonts='strip', force_grayscale=None, quantize_gray=True,
                   skip_smaller_than=4096, progressive=True, jobs=1):
-    """Optimiert eine EPUB-Datei.
+    """Optimise an EPUB file.
 
-    fonts: 'strip' (entfernen) | 'keep' (behalten)
-    skip_smaller_than: Bilder unter dieser Groesse gar nicht anfassen.
-    jobs: Bilder parallel verarbeiten (1 = seriell).
-    Rueckgabe: EpubReport
+    fonts: 'strip' to remove them, 'keep' to leave them in place.
+    skip_smaller_than: leave images below this size untouched.
+    jobs: process images in parallel (1 = serial).
+    Returns an EpubReport.
     """
     import os
     rep = EpubReport(src)
@@ -113,10 +114,10 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
     with zipfile.ZipFile(src, 'r') as zin:
         names = zin.namelist()
 
-        # Referenzen werden ueber den Basisnamen umgeschrieben. Taucht ein
-        # Basisname mehrfach auf (bild.png in zwei Ordnern), wuerde eine
-        # Umbenennung auch die Referenzen der anderen Datei treffen. Solche
-        # Bilder werden deshalb nicht ins Format konvertiert, nur optimiert.
+        # References are rewritten by base name. If a base name occurs
+        # more than once - image.png in two folders - a rename would also
+        # hit the other file's references. Such images are therefore
+        # optimised but never converted to another format.
         seen = {}
         for n in names:
             if not n.endswith('/') and ext_of(n) in RASTER_EXT:
@@ -125,13 +126,13 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
         ambiguous = {b for b, c in seen.items() if c > 1}
 
         payload = {}          # name -> bytes
-        renames = {}          # alter Name -> neuer Name
-        removed = []          # entfernte Namen (Fonts)
+        renames = {}          # old name -> new name
+        removed = []          # names that were removed (fonts)
 
-        # --- Erst einlesen und einsortieren ------------------------------
-        raw = {}              # Name -> Bytes, ohne Fonts und Junk
-        to_opt = []           # Bilder, die wirklich optimiert werden
-        keep_fmt = set()      # Bilder, deren Format bleiben muss
+        # --- Read everything in and sort it out --------------------------
+        raw = {}              # name -> bytes, without fonts and junk
+        to_opt = []           # images that will actually be optimised
+        keep_fmt = set()      # images whose format has to stay
         for name in names:
             if name.endswith('/') or is_junk(name):
                 continue
@@ -150,10 +151,10 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                     if posixpath.basename(name).lower() in ambiguous:
                         keep_fmt.add(name)
                         rep.notes.append(
-                            '%s: Name mehrfach vergeben, Format bleibt' % name)
+                            '%s: name used more than once, format kept' % name)
                     to_opt.append((name, data))
 
-        # --- Bilder optimieren (ggf. ueber mehrere Kerne) ----------------
+        # --- Optimise the images, across cores where possible ------------
         done = {}
         common = dict(quality=quality, force_grayscale=force_grayscale,
                       quantize_gray=quantize_gray, progressive=progressive)
@@ -164,7 +165,7 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
             [it for it in to_opt if it[0] in keep_fmt], profile,
             jobs=jobs, png_to_jpeg=False, **common))
 
-        # --- Ergebnisse einsortieren -------------------------------------
+        # --- Put the results back in place -------------------------------
         for name, data in raw.items():
             res = done.get(name)
             if res is None:
@@ -190,7 +191,7 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                 if res.reason and res.reason not in ('kein Gewinn',):
                     rep.notes.append('%s: %s' % (name, res.reason))
 
-        # --- Textdateien anpassen ---------------------------------------
+        # --- Update the text files --------------------------------------
         if renames or removed:
             for name in list(payload):
                 if ext_of(name) not in TEXT_EXT:
@@ -208,7 +209,7 @@ def optimize_epub(src, dst, profile, quality=80, png_to_jpeg=False,
                 if text != orig:
                     payload[name] = text.encode(enc or 'utf-8')
 
-    # --- Neu schreiben ---------------------------------------------------
+    # --- Write it back out -----------------------------------------------
     ordered = []
     if 'mimetype' in payload:
         ordered.append('mimetype')

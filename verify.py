@@ -1,4 +1,4 @@
-"""Prueft optimierte Dateien auf strukturelle Integritaet."""
+"""Check optimised files for structural integrity."""
 
 import io
 import posixpath
@@ -30,27 +30,27 @@ def verify_epub(path):
         names = z.namelist()
 
         bad = z.testzip()
-        errs += fail('defekter Eintrag %s' % bad) if bad else ok('ZIP intakt')
+        errs += fail('corrupt entry %s' % bad) if bad else ok('ZIP intact')
 
         if names[0] != 'mimetype':
-            errs += fail('mimetype nicht als erster Eintrag')
+            errs += fail('mimetype is not the first entry')
         else:
             zi = z.getinfo('mimetype')
             if zi.compress_type != zipfile.ZIP_STORED:
-                errs += fail('mimetype ist komprimiert')
+                errs += fail('mimetype is compressed')
             elif z.read('mimetype') != b'application/epub+zip':
-                errs += fail('mimetype-Inhalt falsch')
+                errs += fail('mimetype content is wrong')
             else:
-                errs += ok('mimetype korrekt (STORED, erster Eintrag)')
+                errs += ok('mimetype correct: stored, first entry')
 
-        # OPF finden
+        # Locate the OPF
         cn = etree.fromstring(z.read('META-INF/container.xml'))
         opf_path = cn.find('.//{%s}rootfile' % CN_NS).get('full-path')
         opf_dir = posixpath.dirname(opf_path)
         opf = etree.fromstring(z.read(opf_path))
-        errs += ok('OPF parsebar (%s)' % opf_path)
+        errs += ok('OPF parses (%s)' % opf_path)
 
-        # Manifest-Hrefs muessen existieren
+        # Every manifest href must exist
         missing = []
         media = {}
         for item in opf.findall('.//{%s}item' % OPF_NS):
@@ -59,10 +59,10 @@ def verify_epub(path):
             media[full] = item.get('media-type')
             if full not in names:
                 missing.append(href)
-        errs += fail('Manifest zeigt auf fehlende Dateien: %s' % missing) \
-            if missing else ok('alle Manifest-Eintraege vorhanden (%d)' % len(media))
+        errs += fail('manifest points at missing files: %s' % missing) \
+            if missing else ok('all %d manifest entries present' % len(media))
 
-        # media-type muss zum echten Inhalt passen
+        # media-type has to match the actual content
         mismatch = []
         for full, mt in media.items():
             if not mt or not mt.startswith('image/'):
@@ -71,16 +71,16 @@ def verify_epub(path):
             try:
                 real = (Image.open(io.BytesIO(data)).format or '').upper()
             except Exception:
-                mismatch.append((full, 'unlesbar'))
+                mismatch.append((full, 'unreadable'))
                 continue
             want = {'JPEG': 'image/jpeg', 'PNG': 'image/png',
                     'GIF': 'image/gif', 'WEBP': 'image/webp'}.get(real)
             if want and want != mt:
                 mismatch.append((full, '%s != %s' % (mt, want)))
-        errs += fail('media-type passt nicht: %s' % mismatch) \
-            if mismatch else ok('media-types stimmen mit Bildinhalt ueberein')
+        errs += fail('media-type does not match: %s' % mismatch) \
+            if mismatch else ok('media-types match the actual image content')
 
-        # Bildreferenzen in XHTML/CSS muessen aufloesbar sein
+        # Image references in XHTML/CSS have to resolve
         dangling = []
         for n in names:
             if not n.lower().endswith(('.xhtml', '.html', '.htm', '.css')):
@@ -94,10 +94,10 @@ def verify_epub(path):
                 target = posixpath.normpath(posixpath.join(base, ref))
                 if target not in names:
                     dangling.append('%s -> %s' % (n, ref))
-        errs += fail('tote Referenzen: %s' % dangling) \
-            if dangling else ok('keine toten Referenzen in XHTML/CSS')
+        errs += fail('dangling references: %s' % dangling) \
+            if dangling else ok('no dangling references in XHTML/CSS')
 
-        # Fonts wirklich weg?
+        # Are the fonts really gone?
         fonts = [n for n in names
                  if n.lower().endswith(('.ttf', '.otf', '.woff', '.woff2'))]
         ff = []
@@ -106,13 +106,13 @@ def verify_epub(path):
                 if '@font-face' in z.read(n).decode('utf-8', 'replace'):
                     ff.append(n)
         if fonts:
-            errs += fail('Schriften noch vorhanden: %s' % fonts)
+            errs += fail('fonts still present: %s' % fonts)
         elif ff:
-            errs += fail('@font-face-Regeln uebrig in: %s' % ff)
+            errs += fail('@font-face rules left in: %s' % ff)
         else:
-            errs += ok('Schriften und @font-face entfernt')
+            errs += ok('fonts and @font-face removed')
 
-        # Bildgroessen im Rahmen
+        # Image sizes within bounds
         toolarge = []
         for n in names:
             if not n.lower().endswith(('.jpg', '.jpeg', '.png')):
@@ -121,9 +121,9 @@ def verify_epub(path):
             if im.width > 1448 or im.height > 1448:
                 toolarge.append((n, im.size))
             if im.mode not in ('L', 'P', 'LA', '1'):
-                toolarge.append((n, 'Modus %s (nicht grau)' % im.mode))
-        errs += fail('Bilder ausserhalb der Vorgabe: %s' % toolarge) \
-            if toolarge else ok('alle Bilder skaliert und in Graustufen')
+                toolarge.append((n, 'mode %s, not greyscale' % im.mode))
+        errs += fail('images outside the target: %s' % toolarge) \
+            if toolarge else ok('all images scaled and greyscale')
 
     return errs
 
@@ -133,16 +133,16 @@ def verify_cbz(path, expect_pages, manga=False):
     errs = 0
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
-        errs += fail('defekt') if z.testzip() else ok('ZIP intakt')
+        errs += fail('corrupt') if z.testzip() else ok('ZIP intact')
 
         imgs = [n for n in names if n.lower().endswith(('.jpg', '.jpeg', '.png'))]
-        errs += (ok('%d Seiten vorhanden' % len(imgs)) if len(imgs) == expect_pages
-                 else fail('Seitenzahl %d statt %d' % (len(imgs), expect_pages)))
+        errs += (ok('%d pages present' % len(imgs)) if len(imgs) == expect_pages
+                 else fail('%d pages instead of %d' % (len(imgs), expect_pages)))
 
         if sorted(imgs) != imgs:
-            errs += fail('Seitenreihenfolge nicht alphabetisch sortierbar')
+            errs += fail('page order is not alphabetically sortable')
         else:
-            errs += ok('Seitennamen behalten Reihenfolge')
+            errs += ok('page names keep their order')
 
         bad = []
         for n in imgs:
@@ -152,22 +152,22 @@ def verify_cbz(path, expect_pages, manga=False):
             if im.mode not in ('L', 'P', '1'):
                 bad.append((n, im.mode))
             if z.getinfo(n).compress_type != zipfile.ZIP_STORED:
-                bad.append((n, 'nicht STORED'))
-        errs += fail('Seitenprobleme: %s' % bad[:4]) if bad \
-            else ok('Seiten skaliert, grau, STORED')
+                bad.append((n, 'not stored'))
+        errs += fail('page problems: %s' % bad[:4]) if bad \
+            else ok('pages scaled, greyscale, stored')
 
         ci = [n for n in names if n.lower().endswith('comicinfo.xml')]
         if not ci:
-            errs += fail('ComicInfo.xml verloren')
+            errs += fail('ComicInfo.xml is gone')
         else:
             text = z.read(ci[0]).decode('utf-8', 'replace')
             etree.fromstring(text.encode('utf-8'))
             if 'Testcomic' not in text:
-                errs += fail('ComicInfo-Metadaten verloren')
+                errs += fail('ComicInfo metadata is gone')
             elif manga and 'YesAndRightToLeft' not in text:
-                errs += fail('Manga-Leserichtung nicht gesetzt')
+                errs += fail('manga reading direction not set')
             else:
-                errs += ok('ComicInfo.xml erhalten und valide')
+                errs += ok('ComicInfo.xml preserved and valid')
     return errs
 
 
@@ -176,6 +176,6 @@ if __name__ == '__main__':
     total += verify_epub(sys.argv[1])
     total += verify_cbz(sys.argv[2], int(sys.argv[3]),
                         manga='--manga' in sys.argv)
-    print('\n%s' % ('ALLE PRUEFUNGEN BESTANDEN' if total == 0
-                    else '%d PROBLEM(E)' % total))
+    print('\n%s' % ('ALL CHECKS PASSED' if total == 0
+                    else '%d PROBLEM(S)' % total))
     sys.exit(1 if total else 0)

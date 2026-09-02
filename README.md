@@ -12,6 +12,9 @@ the result to Calibre when a different container is needed. A 35-page colour com
 83 MB to 6 MB. A plain-text novel is left untouched, because there is nothing to gain. Everything
 runs on your machine: no cloud, no account, no telemetry.
 
+**36 device profiles** across Kindle, Kobo, PocketBook, Boox, Tolino, Nook and reMarkable, and
+four compression presets whose trade-offs were measured rather than guessed.
+
 > **Open source.** Licensed under the **GNU General Public License v3.0** — free to use, study,
 > modify and redistribute under the same terms. See [LICENSE](LICENSE).
 
@@ -27,6 +30,8 @@ This is the **official** distribution repository:
 [Download & install](#download--install) ·
 [Verify authenticity](#-verify-authenticity-sha-256) ·
 [Usage](#usage) ·
+[Devices](#devices) ·
+[Compression presets](#compression-presets) ·
 [Features](#features) ·
 [Options](#options) ·
 [System requirements](#system-requirements) ·
@@ -95,20 +100,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.2.0.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.3.0.zip` — SHA-256:**
 
 ```
-dc5001cfd67c5a97779ac43271365b3d6b65984232e3f80f1e3ce3fbaf5ddfc0
+fbfa05b16d107f2570160eb64b1075930040b100915e94d7b30f96f2f3ae92a1
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.2.0.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.3.0.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.2.0.zip    sha256sum EBOOK-OPTIMIZER-0.2.0.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.3.0.zip    sha256sum EBOOK-OPTIMIZER-0.3.0.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -124,10 +129,12 @@ the genuine build.
 python -m ebook_optimizer.web
 ```
 
-Opens `http://127.0.0.1:8756`. Pick a whole folder — recursively if you want — or individual
-files, choose the target device and output format, and watch the per-file results come in. The
-server binds to localhost only; it is a user interface, not a network service. On Windows you can
-double-click `start-web.bat` instead.
+Opens `http://127.0.0.1:8756`. Four steps and then one button: **what to convert** — a whole
+folder, recursively if you want, or individual files — **which device**, **how hard to compress**,
+**which output format**, then Go. Progress and per-file results appear as they arrive. The
+interface is light by default and follows your system's dark mode. The server binds to localhost
+only; it is a user interface, not a network service. On Windows you can double-click
+`start-web.bat` instead.
 
 ### Command line
 
@@ -138,13 +145,18 @@ python -m ebook_optimizer.cli ~/Books -r -n
 # Optimise a whole library, keeping each file's format
 python -m ebook_optimizer.cli ~/Books -r
 
+# Squeeze harder, for a device that is running out of space
+python -m ebook_optimizer.cli ~/Books -r --preset small
+
 # Optimise and convert to Kindle format
-python -m ebook_optimizer.cli manga.cbr --to azw3
+python -m ebook_optimizer.cli manga.cbr --device kindle_pw_12 --to azw3
 
 # Kobo, written as .kepub.epub the way Kobo expects
-python -m ebook_optimizer.cli book.epub --to kepub -p kobo_clara_bw
+python -m ebook_optimizer.cli book.epub --device kobo_libra_2 --to kepub
 
-# What can this machine produce?
+# What is available on this machine?
+python -m ebook_optimizer.cli --list-devices
+python -m ebook_optimizer.cli --list-presets
 python -m ebook_optimizer.cli --list-formats
 ```
 
@@ -157,6 +169,56 @@ python build_plugin.py
 In Calibre: *Preferences → Plugins → Load plugin from file* →
 `dist/EBOOK-OPTIMIZER-calibre-plugin.zip`, then restart. The plugin adds a toolbar button that
 optimises the selected books.
+
+---
+
+## Devices
+
+36 profiles, each holding the panel's native resolution and whether it shows colour. Pick one with
+`--device`, or from the dropdown in the interface. `--list-devices` prints the keys.
+
+| Brand | Models |
+|---|---|
+| **Kindle** | 11th gen · Paperwhite 10th/11th/12th gen · Oasis 3 · Colorsoft · Scribe |
+| **Kobo** | Nia · Clara HD/2E · Clara BW · Clara Colour · Libra 2 · Libra Colour · Sage · Elipsa 2E |
+| **PocketBook** | Verse · Verse Pro · Touch HD 3 · Era · InkPad 4 · InkPad Color 3 |
+| **Boox** | Palma · Page · Note Air series · Tab Ultra series |
+| **Tolino** | Page 2 · Shine 5 · Vision 6 |
+| **Nook** | GlowLight 4 · GlowLight 4e |
+| **reMarkable** | 2 · Paper Pro |
+| **Generic** | 6" · 7" · 8" · 10.3" fallbacks |
+
+Colour devices (Kaleido and Gallery panels) keep their colour; every monochrome panel gets
+greyscale, because it cannot show anything else.
+
+---
+
+## Compression presets
+
+Four presets, and manual control when you want it. The numbers are measurements, not adjectives.
+
+| Preset | Quality | Size vs. Balanced | Visibly wrong pixels |
+|---|---|---|---|
+| **Maximum quality** | 90 | +25 to +60 % | 0.000 % |
+| **Balanced** *(default)* | 80 | — | 0.001 to 0.090 % |
+| **Small** | 70 | −19 to −36 % | 0.004 to 0.408 % |
+| **Smallest** | 60 | −32 to −42 % | 0.015 to 0.816 % |
+
+Measured on five representative images: a colour comic page, a greyscale manga page, a webtoon
+strip, a watercolour plate and an 1897 halftone scan, each scaled to a 1072×1448 panel.
+
+*Visibly wrong pixels* counts pixels landing **two or more grey levels** away from the reference
+once both are reduced to the 16 levels an e-ink panel can display. A single level of difference is
+the smallest step the panel can make and is not counted, because it cannot be seen.
+
+Two things fall out of that:
+
+- **Above quality 85 you are paying for nothing.** At 80 the panel-visible error is already under
+  a tenth of a percent, while 90 costs 25 to 60 % more space.
+- **Below 60 it starts to show**, and fine halftone artwork goes first. Text-heavy scans tolerate
+  it comfortably.
+
+`--list-presets` prints the same information on the command line.
 
 ---
 
@@ -216,9 +278,10 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 
 | Option | Effect |
 |---|---|
-| `-p, --profile` | Target device (default `pb_verse_pro`) |
+| `-d, --device` | Target device (default `pb_verse_pro`); `-p, --profile` still works |
+| `-c, --preset` | `maximum`, `balanced` (default), `small`, `smallest` |
 | `-t, --to` | Output format — `epub`, `kepub`, `azw3`, `mobi`, `pdf`, `cbz`, … |
-| `-q, --quality` | JPEG quality 1–100 (default 80) |
+| `-q, --quality` | JPEG quality 1–100, overrides the preset |
 | `-r, --recursive` | Walk sub-folders |
 | `-o, --out-dir` | Output folder (default: `optimiert` beside the source) |
 | `-j, --jobs` | Parallel workers (default: core count, capped at 8) |
@@ -230,10 +293,9 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | `--manga` | Comics: right-to-left reading direction |
 | `--no-progressive` | Baseline instead of progressive JPEG |
 | `-n, --dry-run` | Calculate only, write nothing |
+| `--list-devices` | Print every device profile and exit |
+| `--list-presets` | Explain the compression presets and exit |
 | `--list-formats` | Print available output formats and exit |
-
-Device profiles: `pb_verse_pro`, `pb_verse`, `kobo_clara_bw`, `kobo_clara_colour`,
-`generic_6in_300ppi`.
 
 ---
 

@@ -4,6 +4,25 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.3.0 · 2026-09-02
+
+- The whole tool is now in English: interface, command line, messages and source.
+- The interface is light by default, with a calmer palette, and follows your system's dark mode
+  instead of forcing one look.
+- The interface now walks you through four steps - what to convert, which device, how hard to
+  compress, which output format - and then one Go button.
+- **36 device profiles across 8 brands** instead of 5: Kindle (including Paperwhite 11th and 12th
+  generation, Oasis, Colorsoft and Scribe), Kobo (Nia through Elipsa 2E), PocketBook, Onyx Boox,
+  Tolino, Nook, reMarkable, plus generic 6", 7", 8" and 10.3" fallbacks.
+- **Compression presets** - Maximum quality, Balanced, Small, Smallest - derived from measurements
+  rather than taste. Each one states what it actually costs, and manual control is still there.
+- Quality was measured across a colour comic page, a greyscale manga page, a webtoon strip, a
+  watercolour plate and an 1897 halftone scan. Above quality 85 files grow steeply with nothing
+  visible left to gain on an e-ink panel; below 60 fine halftone artwork starts to suffer first.
+- `--list-devices` and `--list-presets` print what is available, with the measured numbers.
+- `--device` is the new name for `--profile`, which still works.
+- Output folders are now called `optimized` rather than `optimiert`.
+
 ## 0.2.0 · 2026-09-02
 
 - Format conversion: 20 output formats including EPUB, KEPUB, AZW3, MOBI, PDF, FB2 and DOCX, from

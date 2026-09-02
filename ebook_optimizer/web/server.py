@@ -1,8 +1,7 @@
-"""Lokale Weboberflaeche fuer EBOOK-OPTIMIZER.
+"""Local web interface for EBOOK-OPTIMIZER.
 
-Laeuft ausschliesslich auf der eigenen Maschine (127.0.0.1) und braucht
-nichts ausser der Standardbibliothek. Der Browser dient nur als Anzeige;
-gerechnet wird im Python-Prozess.
+Binds to 127.0.0.1 only and needs nothing beyond the standard library.
+The browser is just the display; the work happens in this Python process.
 
 Start:  python -m ebook_optimizer.web
 """
@@ -25,24 +24,24 @@ from ..core.cbz import COMIC_EXT
 from ..core.imaging import backend_name
 from ..core.pipeline import process, target_name
 from ..core.pool import default_jobs
-from ..core.profiles import DEFAULT_PROFILE, PROFILES, get_profile
-from ..core.util import ext_of, human_size, pct_saved
+from ..core.profiles import (DEFAULT_PRESET, DEFAULT_PROFILE, PRESET_ORDER,
+                             PRESETS, get_profile, profiles_by_brand)
+from ..core.util import ext_of, pct_saved
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 NATIVE_EXT = {'.epub', '.kepub'} | COMIC_EXT
 
-# Laufende und abgeschlossene Auftraege.
-_jobs = {}
-_lock = threading.Lock()
-
-
-# ----------------------------------------------------------------- Daten ---
-
-# Siehe cli.SCAN_SKIP_EXT: beim Durchsuchen keine Allerweltsdateien.
+# Calibre also reads .txt, .html and friends. Walking a folder must not
+# sweep those up, or every README would be converted along with the books.
 SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
                  '.md', '.markdown', '.textile', '.opf', '.recipe',
                  '.zip', '.rar', '.shtm', '.shtml'}
 
+# Running and finished jobs.
+_jobs = {}
+
+
+# ------------------------------------------------------------------ Data ---
 
 def known_ext(scanning=False):
     ext = set(NATIVE_EXT)
@@ -59,33 +58,42 @@ def status():
         'calibreVersion': conv.version(),
         'backend': backend_name(),
         'cpus': default_jobs(),
-        'profiles': [{'key': k, 'name': p.name,
-                      'size': '%dx%d' % (p.width, p.height),
-                      'gray': p.grayscale}
-                     for k, p in sorted(PROFILES.items(),
-                                        key=lambda kv: kv[1].name)],
+        'deviceGroups': [
+            {'brand': brand,
+             'devices': [{'key': p.key, 'name': p.name, 'width': p.width,
+                          'height': p.height, 'gray': p.grayscale}
+                         for p in group]}
+            for brand, group in profiles_by_brand()],
         'defaultProfile': DEFAULT_PROFILE,
-        'formats': sorted(set(conv.output_formats()) | {'cbz'})
-                   if conv.available() else ['epub', 'kepub', 'cbz'],
+        'presets': [{'key': PRESETS[k].key, 'name': PRESETS[k].name,
+                     'quality': PRESETS[k].quality,
+                     'quantize': PRESETS[k].quantize,
+                     'summary': PRESETS[k].summary,
+                     'measured': PRESETS[k].measured}
+                    for k in PRESET_ORDER],
+        'defaultPreset': DEFAULT_PRESET,
+        'formats': (sorted(set(conv.output_formats()) | {'cbz'})
+                    if conv.available() else ['cbz', 'epub', 'kepub']),
         'nativeFormats': ['epub', 'kepub', 'cbz'],
     }
 
 
 def list_dir(path):
-    """Verzeichnisinhalt fuer die Ordnerauswahl im Browser."""
+    """Folder contents, for the browser's folder picker."""
     if not path:
-        # Wurzelebene: unter Windows die Laufwerke, sonst das Heimatverzeichnis
+        # Top level: drives on Windows, the home folder elsewhere.
         if sys.platform == 'win32':
             drives = ['%s:\\' % d for d in string.ascii_uppercase
                       if os.path.exists('%s:\\' % d)]
-            return {'path': '', 'parent': None,
+            return {'path': '', 'parent': None, 'sep': os.sep,
+                    'rootLabel': 'Drives',
                     'dirs': [{'name': d, 'path': d} for d in drives],
                     'files': []}
         path = os.path.expanduser('~')
 
     path = os.path.abspath(path)
     if not os.path.isdir(path):
-        raise ValueError('Kein Ordner: %s' % path)
+        raise ValueError('Not a folder: %s' % path)
 
     parent = os.path.dirname(path.rstrip(os.sep))
     if parent == path or (sys.platform == 'win32'
@@ -97,7 +105,7 @@ def list_dir(path):
     try:
         entries = sorted(os.scandir(path), key=lambda e: e.name.lower())
     except PermissionError:
-        raise ValueError('Kein Zugriff auf %s' % path)
+        raise ValueError('No access to %s' % path)
     for e in entries:
         if e.name.startswith('.'):
             continue
@@ -109,11 +117,13 @@ def list_dir(path):
                               'size': e.stat().st_size})
         except OSError:
             continue
-    return {'path': path, 'parent': parent, 'dirs': dirs, 'files': files}
+    return {'path': path, 'parent': parent, 'sep': os.sep,
+            'rootLabel': 'Drives' if sys.platform == 'win32' else 'Home',
+            'dirs': dirs, 'files': files}
 
 
 def scan(paths, recursive):
-    """Sammelt alle verarbeitbaren Dateien unter den angegebenen Pfaden."""
+    """Collect every processable file below the given paths."""
     exts = known_ext(scanning=True)
     found = []
     for p in paths:
@@ -141,7 +151,7 @@ def scan(paths, recursive):
     return out
 
 
-# ---------------------------------------------------------------- Auftrag ---
+# ------------------------------------------------------------------- Job ---
 
 def _worker(job_id, files, opts):
     job = _jobs[job_id]
@@ -153,7 +163,7 @@ def _worker(job_id, files, opts):
 
     for i, f in enumerate(files):
         if job['cancel']:
-            job['state'] = 'abgebrochen'
+            job['state'] = 'cancelled'
             break
         src = f['path']
         job['current'] = os.path.basename(src)
@@ -161,7 +171,7 @@ def _worker(job_id, files, opts):
         ext = ext_of(src)
         fmt = target_fmt or ('cbz' if ext in COMIC_EXT else ext.lstrip('.'))
         stem = os.path.splitext(os.path.basename(src))[0]
-        d = out_dir or os.path.join(os.path.dirname(src), 'optimiert')
+        d = out_dir or os.path.join(os.path.dirname(src), 'optimized')
         try:
             os.makedirs(d, exist_ok=True)
             dst = os.path.join(d, target_name(stem, fmt))
@@ -180,15 +190,15 @@ def _worker(job_id, files, opts):
 
             detail = res.detail
             if res.converted_from:
-                detail = '%s->%s, %s' % (res.converted_from, res.converted_to,
-                                         detail)
+                detail = '%s to %s, %s' % (res.converted_from,
+                                           res.converted_to, detail)
             grew = res.new_size >= res.old_size and fmt == ext.lstrip('.')
             if grew:
                 os.remove(tmp)
                 job['results'].append({
                     'name': f['name'], 'old': res.old_size,
                     'new': res.old_size, 'pct': 0.0, 'skipped': True,
-                    'detail': 'kein Gewinn, Original bleibt'})
+                    'detail': 'no gain, original kept'})
             else:
                 os.replace(tmp, dst)
                 job['results'].append({
@@ -207,33 +217,31 @@ def _worker(job_id, files, opts):
             job['trace'] = traceback.format_exc()[-2000:]
 
     job['done'] = len(files)
-    if job['state'] == 'laeuft':
-        job['state'] = 'fertig'
+    if job['state'] == 'running':
+        job['state'] = 'finished'
     job['finished'] = time.time()
 
 
 def start_job(files, opts):
     job_id = uuid.uuid4().hex[:12]
     _jobs[job_id] = {
-        'id': job_id, 'state': 'laeuft', 'total': len(files), 'done': 0,
+        'id': job_id, 'state': 'running', 'total': len(files), 'done': 0,
         'current': '', 'results': [], 'totalOld': 0, 'totalNew': 0,
         'cancel': False, 'started': time.time(), 'finished': None,
     }
-    t = threading.Thread(target=_worker, args=(job_id, files, opts),
-                         daemon=True)
-    t.start()
+    threading.Thread(target=_worker, args=(job_id, files, opts),
+                     daemon=True).start()
     return job_id
 
 
-# ----------------------------------------------------------------- Server ---
+# ---------------------------------------------------------------- Server ---
 
 class Handler(BaseHTTPRequestHandler):
     server_version = 'EbookOptimizer'
 
     def log_message(self, fmt, *args):
-        pass                      # keine Zugriffslogs auf der Konsole
+        pass                      # no access log on the console
 
-    # -- Hilfen ---------------------------------------------------------
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode('utf-8')
         self.send_response(code)
@@ -242,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _body(self):
+    def _read_body(self):
         n = int(self.headers.get('Content-Length') or 0)
         if not n:
             return {}
@@ -264,7 +272,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    # -- Routen ---------------------------------------------------------
     def do_GET(self):
         p = urlparse(self.path).path
         try:
@@ -273,9 +280,9 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith('/api/job/'):
                 job = _jobs.get(p.rsplit('/', 1)[-1])
                 if not job:
-                    return self._json({'error': 'unbekannt'}, 404)
-                out = {k: v for k, v in job.items() if k != 'cancel'}
-                return self._json(out)
+                    return self._json({'error': 'unknown job'}, 404)
+                return self._json({k: v for k, v in job.items()
+                                   if k != 'cancel'})
             return self._static(p)
         except Exception as e:
             self._json({'error': str(e)}, 500)
@@ -283,7 +290,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         p = urlparse(self.path).path
         try:
-            data = self._body()
+            data = self._read_body()
             if p == '/api/browse':
                 return self._json(list_dir(data.get('path', '')))
             if p == '/api/scan':
@@ -295,20 +302,19 @@ class Handler(BaseHTTPRequestHandler):
             if p == '/api/run':
                 files = data.get('files') or []
                 if not files:
-                    return self._json({'error': 'Keine Dateien'}, 400)
-                return self._json({'id': start_job(files,
-                                                   data.get('opts', {}))})
+                    return self._json({'error': 'no files'}, 400)
+                return self._json(
+                    {'id': start_job(files, data.get('opts', {}))})
             if p == '/api/cancel':
                 job = _jobs.get(data.get('id'))
                 if job:
                     job['cancel'] = True
                 return self._json({'ok': True})
             if p == '/api/reveal':
-                # Zielordner im Explorer oeffnen
                 d = data.get('path') or ''
                 if os.path.isdir(d):
                     if sys.platform == 'win32':
-                        os.startfile(d)             # noqa: S606
+                        os.startfile(d)                     # noqa: S606
                     elif sys.platform == 'darwin':
                         os.system('open %s' % json.dumps(d))
                     else:
@@ -322,19 +328,19 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host='127.0.0.1', port=8756, open_browser=True):
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = 'http://%s:%d/' % (host, port)
-    print('EBOOK-OPTIMIZER laeuft auf %s' % url)
-    print('Zum Beenden: Strg+C')
+    print('EBOOK-OPTIMIZER is running at %s' % url)
+    print('Press Ctrl+C to stop.')
     if not conv.available():
         print('')
-        print('  Hinweis: Calibre wurde nicht gefunden.')
-        print('  Ohne Calibre sind nur EPUB, KEPUB und CBZ moeglich.')
-        print('  Fuer alle weiteren Formate: https://calibre-ebook.com')
+        print('  Note: Calibre was not found.')
+        print('  Without it only EPUB, KEPUB and CBZ are available.')
+        print('  For every other format: https://calibre-ebook.com')
         print('')
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print('\nBeendet.')
+        print('\nStopped.')
     finally:
         httpd.server_close()

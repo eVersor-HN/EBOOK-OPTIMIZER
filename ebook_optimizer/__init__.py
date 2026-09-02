@@ -1,18 +1,19 @@
-"""EBOOK-OPTIMIZER - E-Books und Comics fuer E-Reader verkleinern.
+"""EBOOK-OPTIMIZER - shrink e-books and comics for e-ink readers.
 
-Doppelrolle:
-  * als Calibre-Plugin (Klasse EbookOptimizerPlugin unten)
-  * als eigenstaendiges Python-Paket (python -m ebook_optimizer.cli ...)
+Two roles:
+  * a Calibre plugin (class EbookOptimizerPlugin below)
+  * a standalone Python package (python -m ebook_optimizer.cli ...)
 
-Der Calibre-Import ist bewusst abgesichert, damit die CLI ohne Calibre laeuft.
+The Calibre import is guarded on purpose so the command line runs
+without Calibre installed.
 """
 
-__version_tuple__ = (0, 2, 0)
+__version_tuple__ = (0, 3, 0)
 __version__ = '.'.join(str(x) for x in __version_tuple__)
 
 try:
     from calibre.customize import InterfaceActionBase
-except Exception:                                    # kein Calibre vorhanden
+except Exception:                                    # no Calibre present
     InterfaceActionBase = None
 
 
@@ -20,9 +21,9 @@ if InterfaceActionBase is not None:
 
     class EbookOptimizerPlugin(InterfaceActionBase):
         name = 'EBOOK-OPTIMIZER'
-        description = ('Verkleinert E-Books und Comics fuer E-Reader: '
-                       'Bilder auf Panelaufloesung, Graustufen, Schriften '
-                       'entfernen, CBR nach CBZ.')
+        description = ('Shrink e-books and comics for e-ink readers: '
+                       'images scaled to the panel, greyscale, embedded '
+                       'fonts removed, CBR converted to CBZ.')
         supported_platforms = ['windows', 'osx', 'linux']
         author = 'Marco Aurelio Fattizzo'
         version = __version_tuple__

@@ -59,8 +59,7 @@ plugin or its settings, add one to `test_calibre_stub.py`.
 - Comments explain *why*, not *what*. The existing comments are the model: they justify decisions
   that would otherwise look arbitrary, such as why `mimetype` must be stored first or why comics
   are optimised before Calibre sees them.
-- Source comments and identifiers are in German without umlauts, matching the existing code.
-  User-facing English text lives in the README and the release notes.
+- Everything is in English: identifiers, comments, docstrings and all user-facing text.
 
 ## Licence
 

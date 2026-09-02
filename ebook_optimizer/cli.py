@@ -1,9 +1,9 @@
-"""Standalone-CLI - laeuft ohne Calibre, braucht nur Python 3.8+ und Pillow.
+"""Standalone command line - runs without Calibre, needs only Pillow.
 
-Beispiele:
-    python -m ebook_optimizer.cli buch.epub
-    python -m ebook_optimizer.cli D:\\Bibliothek --recursive --out-dir D:\\Optimiert
-    python -m ebook_optimizer.cli manga.cbr --manga --quality 75 --in-place
+Examples:
+    python -m ebook_optimizer.cli book.epub
+    python -m ebook_optimizer.cli D:\\Library --recursive --preset small
+    python -m ebook_optimizer.cli manga.cbr --to azw3 --manga
 """
 
 import argparse
@@ -17,18 +17,17 @@ from .core.cbz import COMIC_EXT
 from .core.imaging import backend_name
 from .core.pipeline import process, target_name
 from .core.pool import default_jobs
-from .core.profiles import DEFAULT_PROFILE, PROFILES, get_profile
+from .core.profiles import (DEFAULT_PRESET, DEFAULT_PROFILE, PRESET_ORDER,
+                            PRESETS, get_preset, get_profile,
+                            profiles_by_brand)
 from .core.util import ext_of, human_size, pct_saved
 
 EPUB_EXT = {'.epub', '.kepub'}
-# Ohne Calibre koennen wir nur unsere eigenen Behaelter; mit Calibre alles,
-# was dessen Konverter liest.
 NATIVE_EXT = EPUB_EXT | COMIC_EXT
 
-
-# Calibre liest auch .txt, .html und Konsorten. Beim Durchsuchen eines
-# Ordners waere das ein Fallstrick: jede README und jede Notiz wuerde
-# mitkonvertiert. Direkt benannte Dateien bleiben erlaubt.
+# Calibre also reads .txt, .html and friends. When walking a folder that
+# would be a trap: every README and stray note would be converted along
+# with the books. Files named explicitly are still accepted.
 SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
                  '.md', '.markdown', '.textile', '.opf', '.recipe',
                  '.zip', '.rar', '.shtm', '.shtml'}
@@ -63,112 +62,177 @@ def collect(paths, recursive):
             if ext_of(p) in named:
                 out.append(p)
             else:
-                print('Uebersprungen (kein bekanntes Format): %s' % p,
-                      file=sys.stderr)
+                print('Skipped, unknown format: %s' % p, file=sys.stderr)
         else:
-            print('Nicht gefunden: %s' % p, file=sys.stderr)
+            print('Not found: %s' % p, file=sys.stderr)
     return out
 
 
 def target_path(src, args, fmt):
-    base = os.path.basename(src)
-    stem = os.path.splitext(base)[0]
+    stem = os.path.splitext(os.path.basename(src))[0]
     if args.in_place:
         return os.path.join(os.path.dirname(src), target_name(stem, fmt))
-    out_dir = args.out_dir or os.path.join(os.path.dirname(src), 'optimiert')
+    out_dir = args.out_dir or os.path.join(os.path.dirname(src), 'optimized')
     if not args.dry_run:
         os.makedirs(out_dir, exist_ok=True)
     return os.path.join(out_dir, target_name(stem + args.suffix, fmt))
 
 
-def main(argv=None):
+def build_parser():
     ap = argparse.ArgumentParser(
         prog='EBOOK-OPTIMIZER',
-        description='EPUB/Comic-Optimierung fuer E-Ink-Reader')
-    ap.add_argument('paths', nargs='*', help='Dateien oder Ordner')
-    ap.add_argument('-p', '--profile', default=DEFAULT_PROFILE,
-                    choices=sorted(PROFILES), help='Zielgeraet')
-    ap.add_argument('-q', '--quality', type=int, default=80,
-                    help='JPEG-Qualitaet 1-100 (Standard 80)')
+        description='Shrink e-books and comics for e-ink readers, and '
+                    'convert them to the format your device reads.')
+    ap.add_argument('paths', nargs='*', help='files or folders')
+
+    ap.add_argument('-d', '--device', '-p', '--profile', dest='profile',
+                    default=DEFAULT_PROFILE, metavar='DEVICE',
+                    help='target device (default %s). --list-devices shows '
+                         'them all.' % DEFAULT_PROFILE)
+    ap.add_argument('-c', '--preset', choices=PRESET_ORDER,
+                    default=DEFAULT_PRESET,
+                    help='how hard to compress (default %s). --list-presets '
+                         'explains each one.' % DEFAULT_PRESET)
+    ap.add_argument('-t', '--to', metavar='FORMAT',
+                    help='output format, e.g. epub, kepub, azw3, mobi, pdf, '
+                         'cbz. Without it the format is kept; comics always '
+                         'become CBZ. Anything but epub/kepub/cbz needs '
+                         'Calibre.')
+    ap.add_argument('-q', '--quality', type=int, metavar='1-100',
+                    help='JPEG quality, overrides the preset')
     ap.add_argument('-r', '--recursive', action='store_true',
-                    help='Ordner rekursiv durchsuchen')
-    ap.add_argument('-o', '--out-dir', help='Zielordner (Standard: ./optimiert)')
-    ap.add_argument('--suffix', default='', help='Suffix fuer Zieldateien')
+                    help='walk sub-folders')
+    ap.add_argument('-o', '--out-dir',
+                    help='output folder (default: ./optimized)')
+    ap.add_argument('--suffix', default='', help='suffix for output files')
     ap.add_argument('--in-place', action='store_true',
-                    help='Originale ersetzen (legt .bak an, ausser mit --no-backup)')
-    ap.add_argument('--no-backup', action='store_true')
+                    help='replace originals, keeping numbered .bak backups')
+    ap.add_argument('--no-backup', action='store_true',
+                    help='no .bak backup with --in-place')
     ap.add_argument('--fonts', choices=['strip', 'keep'], default='strip',
-                    help='Eingebettete Schriften entfernen oder behalten')
+                    help='remove embedded fonts (default) or keep them')
     ap.add_argument('--png-mode', choices=['keep', 'auto', 'jpeg'],
                     default='auto',
-                    help='PNG/GIF/WebP: Format behalten, automatisch das '
-                         'kleinere Ergebnis waehlen (Standard) oder immer JPEG')
+                    help='image format: keep it, let the smaller result win '
+                         '(default), or always JPEG')
     ap.add_argument('--keep-color', action='store_true',
-                    help='Farbe behalten (kein Graustufen-Zwang)')
+                    help='keep colour, skip greyscale conversion')
     ap.add_argument('--no-quantize', action='store_true',
-                    help='PNG nicht auf 16 Graustufen reduzieren')
+                    help='do not reduce PNGs to 16 grey levels')
     ap.add_argument('--manga', action='store_true',
-                    help='Comics: Leserichtung rechts-nach-links setzen')
-    ap.add_argument('-t', '--to', metavar='FORMAT',
-                    help='Zielformat, z. B. epub, kepub, azw3, mobi, pdf, '
-                         'cbz. Ohne Angabe bleibt das Format erhalten '
-                         '(Comics werden immer zu CBZ). Alles ausser '
-                         'epub/kepub/cbz benoetigt Calibre.')
-    ap.add_argument('--list-formats', action='store_true',
-                    help='Verfuegbare Zielformate anzeigen und beenden')
+                    help='comics: right-to-left reading direction')
     ap.add_argument('-j', '--jobs', type=int, default=default_jobs(),
-                    help='Bilder parallel verarbeiten (Standard: %d)'
-                         % default_jobs())
+                    help='parallel workers (default %d)' % default_jobs())
     ap.add_argument('--no-progressive', action='store_true',
-                    help='Baseline-JPEG statt progressiv. Progressive JPEGs '
-                         'sind rund 6 %% kleiner, sehr alte E-Ink-Geraete '
-                         'koennen damit aber Probleme haben')
+                    help='baseline instead of progressive JPEG. Progressive '
+                         'is about 6 %% smaller, but very old e-ink devices '
+                         'can struggle with it.')
     ap.add_argument('-n', '--dry-run', action='store_true',
-                    help='Nur rechnen, nichts ueberschreiben')
+                    help='calculate only, write nothing')
     ap.add_argument('-v', '--verbose', action='store_true')
+
+    ap.add_argument('--list-devices', action='store_true',
+                    help='list device profiles and exit')
+    ap.add_argument('--list-presets', action='store_true',
+                    help='explain the compression presets and exit')
+    ap.add_argument('--list-formats', action='store_true',
+                    help='list available output formats and exit')
+    return ap
+
+
+def print_devices():
+    print('Device profiles - use the key with --device:\n')
+    for brand, group in profiles_by_brand():
+        print('  %s' % brand)
+        for p in group:
+            print('    %-22s %-26s %4dx%-5d%s'
+                  % (p.key, p.name, p.width, p.height,
+                     '' if p.grayscale else '  colour'))
+        print()
+
+
+def print_presets():
+    print('Compression presets - use the key with --preset:\n')
+    for key in PRESET_ORDER:
+        p = PRESETS[key]
+        mark = '   (default)' if key == DEFAULT_PRESET else ''
+        print('  %-10s quality %d%s' % (p.key, p.quality, mark))
+        print('    %s' % p.summary)
+        print('    %s' % p.measured)
+        print()
+    print('  Measured on a colour comic page, a greyscale manga page, a')
+    print('  webtoon strip, a watercolour plate and an 1897 halftone scan.')
+    print('  "Visibly different" means a pixel lands two or more grey levels')
+    print('  away once reduced to the 16 levels an e-ink panel can show.')
+
+
+def print_formats():
+    if conv.available():
+        print('Calibre: %s' % conv.version())
+        print('Output formats: %s'
+              % ', '.join(sorted(set(conv.output_formats()) | {'cbz'})))
+    else:
+        print('Calibre not found. Without it only epub, kepub and cbz are '
+              'possible.')
+        print('Install it from https://calibre-ebook.com')
+
+
+def main(argv=None):
+    ap = build_parser()
     args = ap.parse_args(argv)
 
-    if args.list_formats:
-        if conv.available():
-            print('Calibre: %s' % conv.version())
-            print('Zielformate: %s' % ', '.join(sorted(
-                set(conv.output_formats()) | {'cbz'})))
-        else:
-            print('Calibre nicht gefunden - ohne Calibre sind nur '
-                  'epub, kepub und cbz moeglich.')
-            print('Installation: https://calibre-ebook.com')
+    if args.list_devices:
+        print_devices()
         return 0
+    if args.list_presets:
+        print_presets()
+        return 0
+    if args.list_formats:
+        print_formats()
+        return 0
+    if not args.paths:
+        ap.error('give at least one file or folder')
+
+    try:
+        profile = get_profile(args.profile)
+        preset = get_preset(args.preset)
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
+
+    # Explicit switches win over the preset.
+    quality = args.quality if args.quality is not None else preset.quality
+    if not 1 <= quality <= 100:
+        ap.error('--quality must be between 1 and 100')
+    quantize = preset.quantize and not args.no_quantize
 
     target_fmt = args.to.lstrip('.').lower() if args.to else None
     if target_fmt and target_fmt not in ('epub', 'kepub', 'cbz') \
             and not conv.available():
-        print('Fuer das Zielformat "%s" wird Calibre benoetigt, es wurde '
-              'aber nicht gefunden.' % target_fmt)
-        print('Installiere Calibre von https://calibre-ebook.com und '
-              'versuche es erneut.')
+        print('Output format "%s" needs Calibre, which was not found.'
+              % target_fmt, file=sys.stderr)
+        print('Install it from https://calibre-ebook.com and try again.',
+              file=sys.stderr)
         return 2
 
-    if not args.paths:
-        ap.error('Bitte mindestens eine Datei oder einen Ordner angeben.')
-
-    profile = get_profile(args.profile)
     files = collect(args.paths, args.recursive)
     if not files:
-        print('Keine passenden Dateien gefunden.')
+        print('No matching files found.')
         return 1
 
-    print('Profil : %s (%dx%d, %s)' % (
-        profile.name, profile.width, profile.height,
-        'Graustufen' if profile.grayscale else 'Farbe'))
-    print('Backend: %s%s' % (
-        backend_name(),
-        '' if args.jobs <= 1 else ', %d parallel' % args.jobs))
-    print('JPEG   : %s' % ('baseline' if args.no_progressive
-                           else 'progressiv (rund 6 % kleiner)'))
-    print('Calibre: %s' % (conv.version() or 'nicht gefunden '
-                              '(nur epub/kepub/cbz moeglich)'))
-    print('Ziel   : %s' % (target_fmt or 'Format beibehalten'))
-    print('Dateien: %d\n' % len(files))
+    print('Device : %s (%dx%d, %s)'
+          % (profile.label, profile.width, profile.height,
+             'greyscale' if profile.grayscale else 'colour'))
+    print('Preset : %s, quality %d%s'
+          % (preset.name, quality,
+             '' if args.quality is None else ' (overridden)'))
+    print('Target : %s' % (target_fmt or 'keep original format'))
+    print('Calibre: %s' % (conv.version()
+                           or 'not found - epub/kepub/cbz only'))
+    print('Engine : %s%s' % (backend_name(),
+                             '' if args.jobs <= 1
+                             else ', %d workers' % args.jobs))
+    print('Files  : %d\n' % len(files))
 
     total_old = total_new = 0
     failed = 0
@@ -184,24 +248,30 @@ def main(argv=None):
                                        suffix='.' + fmt)
             os.close(fd)
         else:
-            # Calibre erkennt das Ausgabeformat an der Endung - die
-            # Temp-Datei muss sie deshalb behalten.
-            _root, _extn = os.path.splitext(dst_final)
-            tmp = _root + '.ebook_opt_tmp' + _extn
+            # Calibre picks the output format from the extension, so the
+            # temporary file has to keep it.
+            root, extn = os.path.splitext(dst_final)
+            tmp = root + '.ebook_opt_tmp' + extn
         try:
             rep = process(
                 src, tmp, profile, target_fmt=fmt,
-                quality=args.quality, png_mode=png_mode, fonts=args.fonts,
+                quality=quality, png_mode=png_mode, fonts=args.fonts,
                 force_grayscale=force_gray, manga=args.manga,
-                quantize_gray=not args.no_quantize,
+                quantize_gray=quantize,
                 progressive=not args.no_progressive, jobs=args.jobs)
             detail = rep.detail
             if rep.converted_from:
-                detail = '%s->%s, %s' % (rep.converted_from,
-                                         rep.converted_to, detail)
+                detail = '%s to %s, %s' % (rep.converted_from,
+                                           rep.converted_to, detail)
+        except conv.CalibreMissing as e:
+            failed += 1
+            print('  %s: %s' % (os.path.basename(src), e))
+            if os.path.exists(tmp):
+                os.remove(tmp)
+            continue
         except Exception as e:
             failed += 1
-            print('  FEHLER %s: %s' % (os.path.basename(src), e))
+            print('  FAILED %s: %s' % (os.path.basename(src), e))
             if args.verbose:
                 traceback.print_exc()
             if os.path.exists(tmp):
@@ -210,11 +280,10 @@ def main(argv=None):
 
         total_old += rep.old_size
         total_new += rep.new_size
-        # Vorzeichen mitformatieren: gewachsene Dateien sonst als "--0.1%"
-        print('%-45s %9s -> %9s  (%+.1f%%)  [%s]' % (
-            os.path.basename(src)[:45], human_size(rep.old_size),
-            human_size(rep.new_size), -pct_saved(rep.old_size, rep.new_size),
-            detail))
+        print('%-45s %9s -> %9s  (%+.1f%%)  [%s]'
+              % (os.path.basename(src)[:45], human_size(rep.old_size),
+                 human_size(rep.new_size),
+                 -pct_saved(rep.old_size, rep.new_size), detail))
         if args.verbose:
             for n in rep.notes[:5]:
                 print('      ! %s' % n)
@@ -223,16 +292,16 @@ def main(argv=None):
             os.remove(tmp)
             continue
 
-        if rep.new_size >= rep.old_size:
-            print('      -> kein Gewinn, Original bleibt')
+        if rep.new_size >= rep.old_size and fmt == ext.lstrip('.'):
+            print('      -> no gain, original kept')
             os.remove(tmp)
             total_new = total_new - rep.new_size + rep.old_size
             continue
 
         if args.in_place:
             if not args.no_backup:
-                # Ein vorhandenes .bak ist die einzige Kopie des Originals -
-                # niemals ueberschreiben, sondern durchnummerieren.
+                # An existing .bak may be the only copy of the original.
+                # Never overwrite it; number the backups instead.
                 bak = src + '.bak'
                 i = 1
                 while os.path.exists(bak):
@@ -240,17 +309,18 @@ def main(argv=None):
                     i += 1
                 os.replace(src, bak)
                 if args.verbose:
-                    print('      -> Sicherung: %s' % os.path.basename(bak))
+                    print('      -> backup: %s' % os.path.basename(bak))
             elif os.path.exists(src):
                 os.remove(src)
         os.replace(tmp, dst_final)
 
-    print('\nGesamt: %s -> %s  gespart %s (%.1f%%)%s' % (
-        human_size(total_old), human_size(total_new),
-        human_size(total_old - total_new), pct_saved(total_old, total_new),
-        '  [Testlauf, nichts geschrieben]' if args.dry_run else ''))
+    print('\nTotal: %s -> %s, saved %s (%.1f%%)%s'
+          % (human_size(total_old), human_size(total_new),
+             human_size(total_old - total_new),
+             pct_saved(total_old, total_new),
+             '  [dry run, nothing written]' if args.dry_run else ''))
     if failed:
-        print('%d Datei(en) fehlgeschlagen.' % failed)
+        print('%d file(s) failed.' % failed)
     return 0
 
 

@@ -1,4 +1,4 @@
-"""Kernlogik der Optimierung - unabhaengig von Calibre."""
+"""Core optimisation logic - independent of Calibre."""
 
 from .profiles import PROFILES, DEFAULT_PROFILE, get_profile  # noqa: F401
 from .epub import optimize_epub  # noqa: F401

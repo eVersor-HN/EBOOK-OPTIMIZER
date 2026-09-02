@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,40 +8,35 @@
 </head>
 <body>
 
-<div class="scanlines" aria-hidden="true"></div>
-
 <header class="topbar">
   <div class="brand">
     <span class="mark">EO</span>
     <div>
       <h1>EBOOK-OPTIMIZER</h1>
-      <p class="sub">E-Books und Comics verkleinern &amp; konvertieren</p>
+      <p class="sub">Shrink e-books and comics for e-ink readers</p>
     </div>
   </div>
   <div class="sysinfo" id="sysinfo"></div>
 </header>
 
-<div id="calibreWarn" class="banner banner-warn" hidden>
-  <strong>Calibre nicht gefunden.</strong>
-  <span>Ohne Calibre sind nur <code>EPUB</code>, <code>KEPUB</code> und
-  <code>CBZ</code> möglich. Für alle weiteren Formate Calibre installieren:
-  <a href="https://calibre-ebook.com" target="_blank" rel="noopener">calibre-ebook.com</a>
-  — danach diese Seite neu laden.</span>
+<div id="calibreWarn" class="banner" hidden>
+  <strong>Calibre not found.</strong>
+  <span>Without it only <code>EPUB</code>, <code>KEPUB</code> and
+  <code>CBZ</code> are available. For every other format, install Calibre
+  from <a href="https://calibre-ebook.com" target="_blank" rel="noopener">calibre-ebook.com</a>
+  and reload this page.</span>
 </div>
 
 <main>
 
-  <!-- 1 QUELLE -->
-  <section class="panel">
-    <div class="phead"><span class="num">01</span><h2>Quelle</h2></div>
-    <div class="pbody">
-      <p class="hint">Wähle einen ganzen Ordner oder einzelne Dateien.
-        Unterordner lassen sich mitnehmen.</p>
-
+  <!-- 1 SOURCE -->
+  <section class="card">
+    <div class="chead"><span class="num">1</span><h2>What do you want to convert?</h2></div>
+    <div class="cbody">
       <div class="pathrow">
         <input type="text" id="pathInput" spellcheck="false"
-               placeholder="Pfad eingeben oder unten auswählen …">
-        <button class="btn" id="goPath">Öffnen</button>
+               placeholder="Type a path, or browse below">
+        <button class="btn" id="goPath">Open</button>
       </div>
 
       <div class="browser">
@@ -49,19 +44,19 @@
         <ul class="filelist" id="dirList"></ul>
       </div>
 
-      <label class="check">
-        <input type="checkbox" id="recursive" checked>
-        <span>Unterordner einbeziehen</span>
-      </label>
-
-      <div class="actions">
-        <button class="btn btn-ghost" id="useFolder">Diesen Ordner nehmen</button>
-        <button class="btn btn-ghost" id="clearSel">Auswahl leeren</button>
+      <div class="rowline">
+        <label class="check">
+          <input type="checkbox" id="recursive" checked>
+          <span>Include sub-folders</span>
+        </label>
+        <div class="spacer"></div>
+        <button class="btn" id="useFolder">Use this whole folder</button>
+        <button class="btn btn-quiet" id="clearSel">Clear</button>
       </div>
 
       <div class="selbox" id="selBox" hidden>
         <div class="selhead">
-          <span id="selCount">0 Dateien</span>
+          <span id="selCount">0 files</span>
           <span id="selSize" class="dim"></span>
         </div>
         <ul id="selList" class="sellist"></ul>
@@ -69,83 +64,89 @@
     </div>
   </section>
 
-  <!-- 2 ZIEL -->
-  <section class="panel">
-    <div class="phead"><span class="num">02</span><h2>Ziel</h2></div>
-    <div class="pbody grid2">
+  <!-- 2 DEVICE -->
+  <section class="card">
+    <div class="chead"><span class="num">2</span><h2>Which device is it for?</h2></div>
+    <div class="cbody">
       <label class="field">
-        <span>Gerät</span>
         <select id="profile"></select>
       </label>
+      <p class="hint" id="profileHint"></p>
+    </div>
+  </section>
 
+  <!-- 3 COMPRESSION -->
+  <section class="card">
+    <div class="chead"><span class="num">3</span><h2>How hard should it compress?</h2></div>
+    <div class="cbody">
+      <div class="presets" id="presets"></div>
+
+      <details class="manual" id="manualBox">
+        <summary>Set it manually</summary>
+        <div class="manualBody">
+          <label class="field">
+            <span>JPEG quality <output id="qOut">80</output></span>
+            <input type="range" id="quality" min="40" max="95" value="80">
+            <span class="scale"><em>smaller file</em><em>better quality</em></span>
+          </label>
+          <div class="grid2">
+            <label class="field">
+              <span>Image format</span>
+              <select id="pngMode">
+                <option value="auto" selected>Automatic - smaller result wins</option>
+                <option value="keep">Keep the original format</option>
+                <option value="jpeg">Always JPEG</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Parallel workers</span>
+              <input type="number" id="jobs" min="1" max="32" value="8">
+            </label>
+          </div>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="keepColor">
+              <span>Keep colour <em class="dim">e-ink shows greyscale anyway</em></span></label>
+            <label class="check"><input type="checkbox" id="keepFonts">
+              <span>Keep embedded fonts</span></label>
+            <label class="check"><input type="checkbox" id="noQuantize">
+              <span>Do not reduce PNGs to 16 grey levels</span></label>
+            <label class="check"><input type="checkbox" id="manga">
+              <span>Comics: right-to-left reading direction</span></label>
+            <label class="check"><input type="checkbox" id="noProgressive">
+              <span>Baseline JPEG <em class="dim">only needed if a very old device refuses the file</em></span></label>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- 4 FORMAT -->
+  <section class="card">
+    <div class="chead"><span class="num">4</span><h2>Which output format?</h2></div>
+    <div class="cbody grid2">
       <label class="field">
-        <span>Ausgabeformat</span>
         <select id="format"></select>
       </label>
-
-      <label class="field wide">
-        <span>Zielordner <em class="dim">leer = Unterordner „optimiert“ neben dem Original</em></span>
-        <input type="text" id="outDir" spellcheck="false" placeholder="(automatisch)">
-      </label>
-    </div>
-  </section>
-
-  <!-- 3 EINSTELLUNGEN -->
-  <section class="panel">
-    <div class="phead">
-      <span class="num">03</span><h2>Einstellungen</h2>
-      <button class="btn btn-tiny btn-ghost" id="toggleAdv">Erweitert</button>
-    </div>
-    <div class="pbody">
       <label class="field">
-        <span>JPEG-Qualität <output id="qOut">80</output></span>
-        <input type="range" id="quality" min="40" max="95" value="80">
+        <input type="text" id="outDir" spellcheck="false"
+               placeholder="Output folder - leave empty for &quot;optimized&quot; next to the original">
       </label>
-
-      <div id="adv" hidden>
-        <div class="grid2">
-          <label class="field">
-            <span>Bildformat</span>
-            <select id="pngMode">
-              <option value="auto" selected>automatisch – kleineres gewinnt</option>
-              <option value="keep">Format beibehalten</option>
-              <option value="jpeg">immer JPEG</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Parallele Prozesse</span>
-            <input type="number" id="jobs" min="1" max="32" value="8">
-          </label>
-        </div>
-        <div class="checks">
-          <label class="check"><input type="checkbox" id="keepColor">
-            <span>Farbe behalten <em class="dim">E-Ink zeigt ohnehin Graustufen</em></span></label>
-          <label class="check"><input type="checkbox" id="keepFonts">
-            <span>Eingebettete Schriften behalten</span></label>
-          <label class="check"><input type="checkbox" id="noQuantize">
-            <span>PNG nicht auf 16 Graustufen reduzieren</span></label>
-          <label class="check"><input type="checkbox" id="manga">
-            <span>Comics: Leserichtung rechts-nach-links</span></label>
-          <label class="check"><input type="checkbox" id="noProgressive">
-            <span>Baseline-JPEG <em class="dim">nur nötig, wenn ein sehr altes Gerät streikt</em></span></label>
-        </div>
-      </div>
     </div>
   </section>
 
-  <!-- START -->
+  <!-- GO -->
   <section class="runbar">
-    <button class="btn btn-primary" id="runBtn" disabled>Starten</button>
-    <button class="btn btn-danger" id="cancelBtn" hidden>Abbrechen</button>
-    <span class="runinfo" id="runInfo">Zuerst Dateien auswählen</span>
+    <button class="btn btn-go" id="runBtn" disabled>Go</button>
+    <button class="btn btn-stop" id="cancelBtn" hidden>Stop</button>
+    <span class="runinfo" id="runInfo">Pick files or a folder first</span>
   </section>
 
-  <!-- ERGEBNIS -->
-  <section class="panel" id="resultPanel" hidden>
-    <div class="phead"><span class="num">04</span><h2>Ergebnis</h2>
-      <button class="btn btn-tiny btn-ghost" id="openOut" hidden>Ordner öffnen</button>
+  <!-- RESULT -->
+  <section class="card" id="resultPanel" hidden>
+    <div class="chead"><span class="num">✓</span><h2>Result</h2>
+      <button class="btn btn-quiet btn-tiny" id="openOut" hidden>Open folder</button>
     </div>
-    <div class="pbody">
+    <div class="cbody">
       <div class="progwrap"><div class="prog" id="prog"></div></div>
       <p class="status" id="statusLine"></p>
       <div class="totals" id="totals" hidden></div>
@@ -156,7 +157,7 @@
 </main>
 
 <footer>
-  <span>Läuft lokal auf deinem Rechner · keine Daten verlassen die Maschine</span>
+  <span>Runs locally on your machine · nothing is uploaded</span>
 </footer>
 
 <script src="app.js"></script>

@@ -1,4 +1,4 @@
-"""Erzeugt synthetische Testdateien (EPUB + CBZ) mit realistischen Groessen."""
+"""Generate synthetic test files (EPUB + CBZ) at realistic sizes."""
 
 import os
 import random

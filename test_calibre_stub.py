@@ -1,10 +1,10 @@
-"""Laesst ui.py und config.py gegen nachgebaute Calibre-APIs laufen.
+"""Run ui.py and config.py against stand-in Calibre APIs.
 
-Kein Ersatz fuer einen echten Calibre-Start: ob die APIs so heissen und
-sich so verhalten, kann nur Calibre selbst beantworten. Alles andere deckt
-dieser Test ab - Importfehler, Tippfehler in Attributnamen, falsche
-Signaturen im eigenen Code und die komplette Job-Logik in _run()
-inklusive echter EPUB-/CBZ-Optimierung.
+No substitute for starting real Calibre: whether those APIs are named
+and behave as assumed can only be answered by Calibre itself. Everything
+else is covered here - import errors, typos in attribute names, wrong
+signatures in our own code, and the whole job logic in _run() including
+real EPUB and CBZ optimisation.
 """
 
 import os
@@ -23,7 +23,7 @@ def check(name, cond, extra=''):
         FAILS.append(name)
 
 
-# ------------------------------------------------------- Calibre-Attrappen ---
+# ------------------------------------------------------- Calibre stand-ins ---
 
 def _mod(name, **attrs):
     m = types.ModuleType(name)
@@ -34,7 +34,7 @@ def _mod(name, **attrs):
 
 
 class _Q(object):
-    """Minimaler Qt-Widget-Ersatz: merkt sich, was gesetzt wurde."""
+    """Minimal Qt widget stand-in: remembers what was set."""
 
     def __init__(self, *a, **kw):
         self._items = []
@@ -66,6 +66,9 @@ class _Q(object):
     def setRange(self, a, b):
         self._range = (a, b)
 
+    def setSpecialValueText(self, t):
+        self._special = t
+
     def setValue(self, v):
         self._value = v
 
@@ -90,7 +93,7 @@ class _Q(object):
 
 
 class JSONConfig(dict):
-    """Verhaelt sich wie Calibres JSONConfig: Defaults als Rueckfallebene."""
+    """Behaves like Calibre's JSONConfig: defaults as the fallback."""
 
     def __init__(self, name):
         dict.__init__(self)
@@ -140,7 +143,7 @@ _mod('calibre.utils.config', JSONConfig=JSONConfig)
 _mod('qt.core', QCheckBox=_Q, QComboBox=_Q, QFormLayout=_Q, QLabel=_Q,
      QSpinBox=_Q, QVBoxLayout=_Q, QWidget=_Q)
 
-# calibre_plugins.ebook_optimizer -> das echte Paket
+# calibre_plugins.ebook_optimizer -> the real package
 import ebook_optimizer                                            # noqa: E402
 
 cp = _mod('calibre_plugins')
@@ -152,65 +155,80 @@ for _sub in ('core', 'core.cbz', 'core.epub', 'core.imaging',
     sys.modules['calibre_plugins.ebook_optimizer.' + _sub] = sys.modules['ebook_optimizer.' + _sub]
 
 
-# --------------------------------------------------------------- Testfaelle ---
+# --------------------------------------------------------------- Test cases ---
 
 def test_plugin_entry():
-    print('Plugin-Einstiegspunkt')
+    print('Plugin entry point')
     import importlib
     importlib.reload(ebook_optimizer)
     sys.modules['calibre_plugins.ebook_optimizer'] = ebook_optimizer
     cls = getattr(ebook_optimizer, 'EbookOptimizerPlugin', None)
-    check('EbookOptimizerPlugin wird bei Calibre-Import definiert', cls is not None)
+    check('EbookOptimizerPlugin is defined when Calibre is importable', cls is not None)
     if cls is None:
         return
-    check('Version ist ein Tupel', isinstance(cls.version, tuple),
+    check('version is a tuple', isinstance(cls.version, tuple),
           str(cls.version))
-    check('actual_plugin zeigt auf ui:EbookOptimizerAction',
+    check('actual_plugin points at ui:EbookOptimizerAction',
           cls.actual_plugin == 'calibre_plugins.ebook_optimizer.ui:EbookOptimizerAction')
-    check('minimum_calibre_version gesetzt',
+    check('minimum_calibre_version is set',
           isinstance(cls.minimum_calibre_version, tuple))
 
 
 def test_config():
     print('')
-    print('Einstellungsdialog')
+    print('Settings dialog')
     import ebook_optimizer.config as cfg
     sys.modules['calibre_plugins.ebook_optimizer.config'] = cfg
 
+    from ebook_optimizer.core.profiles import PRESET_ORDER, PROFILES
     w = cfg.ConfigWidget()
-    check('ConfigWidget baut sich auf', True)
-    check('alle Profile im Auswahlfeld', w.profile.count() == 5,
-          str(w.profile.count()))
-    check('PNG-Modus hat drei Optionen', w.png_mode.count() == 3)
-    check('PNG-Standard ist auto', w.png_mode.currentData() == 'auto',
+    check('ConfigWidget builds', True)
+    check('every device is in the dropdown',
+          w.profile.count() == len(PROFILES), str(w.profile.count()))
+    check('every preset is in the dropdown',
+          w.preset.count() == len(PRESET_ORDER), str(w.preset.count()))
+    check('image-format mode has three options', w.png_mode.count() == 3)
+    check('image-format default is auto', w.png_mode.currentData() == 'auto',
           str(w.png_mode.currentData()))
 
     w.png_mode.setCurrentIndex(2)
     w.save_settings()
-    check('save_settings schreibt png_mode', cfg.prefs['png_mode'] == 'jpeg',
+    check('save_settings stores png_mode', cfg.prefs['png_mode'] == 'jpeg',
           str(cfg.prefs['png_mode']))
-    check('gespeicherte Qualitaet kommt zurueck',
-          cfg.prefs['quality'] == w.quality.value())
-    check('progressive JPEGs sind voreingestellt',
+    check('progressive JPEG is the default',
           cfg.prefs.defaults['progressive'] is True)
     w.progressive.setChecked(False)
     w.save_settings()
-    check('progressive laesst sich abschalten',
+    check('progressive can be switched off',
           cfg.prefs['progressive'] is False)
 
-    # Migration: alter bool-Schalter ohne neuen Schluessel
+    cfg.prefs.clear()
+    check('without an override the preset quality applies',
+          cfg.effective_quality() == 80, str(cfg.effective_quality()))
+    cfg.prefs['preset'] = 'smallest'
+    check('preset "smallest" lowers quality to 60',
+          cfg.effective_quality() == 60, str(cfg.effective_quality()))
+    cfg.prefs['quality'] = 72
+    check('a manual quality overrides the preset',
+          cfg.effective_quality() == 72, str(cfg.effective_quality()))
+    cfg.prefs.clear()
+    cfg.prefs['preset'] = 'maximum'
+    check('preset "maximum" turns quantisation off',
+          cfg.effective_quantize() is False)
+
+    # Migration: the old boolean switch with no new key
     cfg.prefs.clear()
     cfg.prefs['png_to_jpeg'] = True
-    check('alte Einstellung png_to_jpeg=True wird zu "jpeg"',
+    check('legacy png_to_jpeg=True migrates to "jpeg"',
           cfg.current_png_mode() == 'jpeg', str(cfg.current_png_mode()))
     cfg.prefs.clear()
-    check('ohne Einstellung: auto', cfg.current_png_mode() == 'auto')
-    check('Plugin nutzt dieselben Werte wie die CLI',
+    check('with nothing stored: auto', cfg.current_png_mode() == 'auto')
+    check('plugin uses the same values as the command line',
           set(cfg.PNG_MODE_ARG.values()) == set([False, 'auto', True]))
 
 
 class FakeDB(object):
-    """Nachbau der wenigen new_api-Methoden, die ui.py benutzt."""
+    """Stand-in for the few new_api methods ui.py uses."""
 
     def __init__(self, files):
         self.files = files          # book_id -> (FORMAT, pfad)
@@ -255,17 +273,17 @@ class FakeQueue(object):
 
 def test_job():
     print('')
-    print('Hintergrundjob (_run) mit echten Dateien')
+    print('Background job (_run) with real files')
     import ebook_optimizer.config as cfg
     sys.modules['calibre_plugins.ebook_optimizer.config'] = cfg
     import ebook_optimizer.ui as ui
-    check('ui.py importierbar', True)
+    check('ui.py imports', True)
 
     data = os.path.join(HERE, 'testdata')
     epub = os.path.join(data, 'testbuch.epub')
     cbz = os.path.join(data, 'testcomic.cbz')
     if not (os.path.exists(epub) and os.path.exists(cbz)):
-        check('Testdaten vorhanden (make_testdata.py ausfuehren)', False)
+        check('test data present, run make_testdata.py', False)
         return
 
     db = FakeDB({1: ('EPUB', epub), 2: ('CBZ', cbz)})
@@ -273,50 +291,57 @@ def test_job():
             'png_mode': 'auto', 'keep_color': False, 'quantize': True,
             'manga': False, 'progressive': True, 'add_as_format': True,
             'replace_original': True}
+    # Exactly the keys ui.start() assembles. If those drift apart it
+    # shows up here rather than inside Calibre.
+    built = {'profile', 'fonts', 'keep_color', 'manga', 'progressive',
+             'add_as_format', 'replace_original', 'png_mode', 'quality',
+             'quantize'}
+    check('ui.start() supplies exactly the expected keys',
+          built == set(opts), str(built ^ set(opts)))
     log_lines = []
     q = FakeQueue()
 
     results = ui._run([1, 2], db, opts, log_lines.append, FakeAbort(), q)
 
-    check('beide Buecher verarbeitet', len(results) == 2, str(len(results)))
-    check('Fortschritt gemeldet', len(q.items) == 2)
-    check('kein Traceback im Log',
+    check('both books processed', len(results) == 2, str(len(results)))
+    check('progress reported', len(q.items) == 2)
+    check('no traceback in the log',
           not any('FEHLER' in l for l in log_lines),
           '' if not log_lines else log_lines[-1][:60])
-    check('EPUB als EPUB zurueckgeschrieben',
+    check('EPUB written back as EPUB',
           any(f == 'EPUB' for _b, f, _n in db.added))
-    check('Comic als CBZ zurueckgeschrieben',
+    check('comic written back as CBZ',
           any(f == 'CBZ' for _b, f, _n in db.added))
-    check('Ergebnis ist kleiner als das Original',
+    check('result is smaller than the original',
           all(new < old for _t, old, new in results),
           str([(o, n) for _t, o, n in results]))
-    check('kein Format geloescht, wenn Ein- und Ausgabe gleich sind',
+    check('no format deleted when input and output match',
           db.removed == [], str(db.removed))
 
-    # Manga-Schalter muss ohne Fehler durchlaufen
+    # The manga switch has to run through without error
     before = len(log_lines)
     opts2 = dict(opts, manga=True, add_as_format=False)
     ui._run([2], db, opts2, log_lines.append, FakeAbort(), q)
-    check('Manga-Option laeuft ohne Fehler',
+    check('manga option runs without error',
           not any('FEHLER' in l for l in log_lines[before:]))
 
-    check('Abbruch wird beachtet',
+    check('abort is honoured',
           ui._run([1, 2], db, opts, log_lines.append, Aborted(), q) == [])
 
-    # Buch ohne passendes Format darf nicht abstuerzen
+    # A book with no suitable format must not crash
     db2 = FakeDB({3: ('PDF', epub)})
-    check('Buch ohne EPUB/Comic wird uebersprungen',
+    check('a book with no EPUB or comic is skipped',
           ui._run([3], db2, opts, log_lines.append, FakeAbort(), q) == [])
 
 
 def test_action():
     print('')
-    print('Toolbar-Aktion')
+    print('Toolbar action')
     import ebook_optimizer.ui as ui
     act = ui.EbookOptimizerAction()
-    check('action_spec vollstaendig', len(ui.EbookOptimizerAction.action_spec) == 4)
+    check('action_spec is complete', len(ui.EbookOptimizerAction.action_spec) == 4)
     act.genesis()
-    check('genesis laeuft durch', True)
+    check('genesis runs', True)
 
     class Sel(object):
         def selectedRows(self):
@@ -324,7 +349,7 @@ def test_action():
 
     act.gui = types.SimpleNamespace(
         library_view=types.SimpleNamespace(selectionModel=lambda: Sel()))
-    check('leere Auswahl gibt einen Hinweis statt abzustuerzen',
+    check('an empty selection shows a notice instead of crashing',
           act.start()[0] == 'error')
 
 
@@ -334,6 +359,6 @@ if __name__ == '__main__':
     test_job()
     test_action()
     print('')
-    print('%s' % ('ALLE STUB-TESTS BESTANDEN' if not FAILS
-                  else '%d FEHLER: %s' % (len(FAILS), ', '.join(FAILS))))
+    print('%s' % ('ALL STUB TESTS PASSED' if not FAILS
+                  else '%d FAILED: %s' % (len(FAILS), ', '.join(FAILS))))
     sys.exit(1 if FAILS else 0)

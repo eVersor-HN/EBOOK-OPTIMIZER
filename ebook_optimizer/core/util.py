@@ -1,4 +1,4 @@
-"""Kleine Hilfsfunktionen ohne externe Abhaengigkeiten."""
+"""Small helpers with no external dependencies."""
 
 import posixpath
 import re
@@ -10,7 +10,7 @@ JUNK_NAMES = {'.ds_store', 'thumbs.db', 'desktop.ini'}
 
 
 def natural_key(name):
-    """Sortierschluessel: 'p2.jpg' vor 'p10.jpg'."""
+    """Sort key that puts 'p2.jpg' before 'p10.jpg'."""
     parts = _NUM_RE.split(name.lower())
     return [int(p) if p.isdigit() else p for p in parts]
 

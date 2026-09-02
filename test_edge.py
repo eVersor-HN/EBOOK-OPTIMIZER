@@ -1,4 +1,4 @@
-"""Randfaelle: kaputte Bilder, Transparenz, Animation, exotische Modi."""
+"""Edge cases: corrupt images, transparency, animation, exotic modes."""
 
 import io
 import os
@@ -32,22 +32,22 @@ def enc(im, fmt, **kw):
     return b.getvalue()
 
 
-print('Bild-Randfaelle')
+print('Image edge cases')
 
-# 1 Transparenz darf bei Format-Beibehaltung nicht verloren gehen
+# 1 Keeping the format must not lose transparency
 rgba = Image.new('RGBA', (1800, 1200), (255, 0, 0, 0))
 rgba.paste(Image.new('RGBA', (400, 400), (0, 0, 255, 255)), (10, 10))
 r = optimize_image(enc(rgba, 'PNG'), P, png_to_jpeg='auto')
 out = Image.open(io.BytesIO(r.data))
-check('Alpha-PNG behaelt Transparenz', out.mode in ('LA', 'PA', 'RGBA', 'P'),
+check('alpha PNG keeps its transparency', out.mode in ('LA', 'PA', 'RGBA', 'P'),
       out.mode)
-check('Alpha-PNG bleibt PNG', r.fmt == 'PNG', r.fmt)
+check('alpha PNG stays PNG', r.fmt == 'PNG', r.fmt)
 
-# 2 Erzwungenes JPEG darf Alpha nicht zerstoeren -> muss PNG bleiben
+# 2 Forced JPEG must not destroy alpha, so it has to stay PNG
 r = optimize_image(enc(rgba, 'PNG'), P, png_to_jpeg=True)
-check('Alpha-PNG wird nicht zu JPEG gezwungen', r.fmt == 'PNG', r.fmt)
+check('alpha PNG is not forced to JPEG', r.fmt == 'PNG', r.fmt)
 
-# 3 Animiertes GIF unangetastet (uebergross, damit Skalierung greifen wuerde)
+# 3 Animated GIF left alone, oversized so scaling would otherwise kick in
 frames = []
 for i in range(6):
     f = Image.new('P', (2000, 1500), 0)
@@ -56,43 +56,43 @@ for i in range(6):
 b = io.BytesIO()
 frames[0].save(b, 'GIF', save_all=True, append_images=frames[1:], duration=100)
 gif = b.getvalue()
-assert Image.open(io.BytesIO(gif)).n_frames > 1, 'Testdaten sind nicht animiert'
+assert Image.open(io.BytesIO(gif)).n_frames > 1, 'the test GIF is not animated'
 r = optimize_image(gif, P)
-check('animiertes GIF bleibt unveraendert',
-      not r.changed and r.data == gif and r.reason == 'animiert', r.reason)
+check('animated GIF is left untouched',
+      not r.changed and r.data == gif and r.reason == 'animated', r.reason)
 
-# 4 Defekte Datei -> kein Absturz, Original zurueck
+# 4 A corrupt file must not crash; the original comes back
 r = optimize_image(b'\x89PNG\r\n\x1a\n GARBAGE' * 20, P)
-check('defektes Bild wird abgefangen', not r.changed, r.reason)
+check('corrupt image is caught', not r.changed, r.reason)
 
-# 5 CMYK-JPEG
+# 5 CMYK JPEG
 cmyk = Image.new('CMYK', (1600, 1200), (10, 20, 30, 5))
 r = optimize_image(enc(cmyk, 'JPEG', quality=95), P)
-check('CMYK-JPEG konvertiert', r.changed and
+check('CMYK JPEG is converted', r.changed and
       Image.open(io.BytesIO(r.data)).mode == 'L')
 
-# 6 Kleines Bild wird nicht hochskaliert
+# 6 A small image is never upscaled
 small = Image.new('RGB', (120, 90), (200, 100, 50))
 r = optimize_image(enc(small, 'PNG'), P)
 sz = Image.open(io.BytesIO(r.data)).size if r.changed else (120, 90)
-check('kleines Bild wird nicht vergroessert', sz == (120, 90), str(sz))
+check('small image is not upscaled', sz == (120, 90), str(sz))
 
-# 7 Querformat-Doppelseite: Box wird gedreht, nicht kaputt skaliert
+# 7 Landscape double spread: the box rotates instead of crushing it
 wide = Image.new('RGB', (3000, 2000), (30, 30, 30))
 r = optimize_image(enc(wide, 'JPEG', quality=95), P)
 w, h = Image.open(io.BytesIO(r.data)).size
-check('Doppelseite nutzt lange Kante', w == 1448 and h <= 1072, '%dx%d' % (w, h))
+check('double spread uses its long edge', w == 1448 and h <= 1072, '%dx%d' % (w, h))
 
-# 8 1-Bit-Strichzeichnung
+# 8 1-bit image-Strichzeichnung
 bw = Image.new('1', (2000, 2600), 1)
 r = optimize_image(enc(bw, 'PNG'), P)
-check('1-Bit-Bild verarbeitbar', r.changed or r.reason == 'kein Gewinn', r.reason)
+check('1-bit image can be processed', r.changed or r.reason == 'no gain', r.reason)
 
 
-print('\nArchiv-Randfaelle')
+print('\nArchive edge cases')
 tmp = tempfile.mkdtemp()
 
-# 9 EPUB ohne Bilder und ohne Fonts
+# 9 EPUB with no images und ohne Fonts
 epub = os.path.join(tmp, 'leer.epub')
 with zipfile.ZipFile(epub, 'w') as z:
     zi = zipfile.ZipInfo('mimetype'); zi.compress_type = zipfile.ZIP_STORED
@@ -104,12 +104,12 @@ with zipfile.ZipFile(epub, 'w') as z:
     z.writestr('t.xhtml', '<html><body><p>nur Text</p></body></html>')
 out = os.path.join(tmp, 'leer_out.epub')
 rep = optimize_epub(epub, out, P)
-check('EPUB ohne Bilder laeuft durch', rep.images == 0 and os.path.exists(out))
+check('EPUB without images runs through', rep.images == 0 and os.path.exists(out))
 with zipfile.ZipFile(out) as z:
-    check('EPUB ohne Bilder bleibt lesbar', z.testzip() is None and
+    check('EPUB without images stays readable', z.testzip() is None and
           z.read('t.xhtml').startswith(b'<html'))
 
-# 10 EPUB mit Junk-Dateien
+# 10 EPUB containing junk files
 epub2 = os.path.join(tmp, 'junk.epub')
 with zipfile.ZipFile(epub2, 'w') as z:
     zi = zipfile.ZipInfo('mimetype'); zi.compress_type = zipfile.ZIP_STORED
@@ -121,7 +121,7 @@ out2 = os.path.join(tmp, 'junk_out.epub')
 optimize_epub(epub2, out2, P)
 with zipfile.ZipFile(out2) as z:
     names = z.namelist()
-check('Junk-Dateien entfernt',
+check('junk files removed',
       not any('MACOSX' in n or 'DS_Store' in n for n in names), str(names))
 
 # 11 CBZ mit unsortierten Namen (2 vor 10)
@@ -134,11 +134,11 @@ outc = os.path.join(tmp, 'u_out.cbz')
 rep = optimize_comic(cbz, outc, P)
 with zipfile.ZipFile(outc) as z:
     order = [n for n in z.namelist()]
-check('natuerliche Sortierung (p2 vor p10)',
+check('natural ordering, p2 before p10',
       order.index('p2.jpg') < order.index('p10.jpg'), str(order))
-check('alle Seiten erhalten', rep.pages == 5, str(rep.pages))
+check('all pages preserved', rep.pages == 5, str(rep.pages))
 
-# 12 CBT (tar) wird erkannt
+# 12 CBT (tar) is recognised
 cbt = os.path.join(tmp, 't.cbt')
 with tarfile.open(cbt, 'w') as t:
     for i in (1, 2):
@@ -148,38 +148,38 @@ with tarfile.open(cbt, 'w') as t:
 outt = os.path.join(tmp, 't_out.cbz')
 try:
     rep = optimize_comic(cbt, outt, P)
-    check('CBT wird gelesen und zu CBZ', rep.pages == 2 and
+    check('CBT is read and written as CBZ', rep.pages == 2 and
           zipfile.is_zipfile(outt), rep.source_format)
 except Exception as e:
-    check('CBT wird gelesen und zu CBZ', False, str(e))
+    check('CBT is read and written as CBZ', False, str(e))
 
-# 13 CBR ohne Entpacker -> klare Fehlermeldung, kein Absturz
+# 13 CBR without an unpacker: a clear error, not a crash
 cbr = os.path.join(tmp, 'x.cbr')
 with open(cbr, 'wb') as f:
     f.write(b'Rar!\x1a\x07\x00' + b'\x00' * 500)
 try:
     optimize_comic(cbr, os.path.join(tmp, 'x_out.cbz'), P)
-    check('CBR ohne Entpacker meldet Fehler', False, 'keine Exception')
+    check('CBR without an unpacker reports an error', False, 'no exception raised')
 except Exception as e:
-    check('CBR ohne Entpacker meldet Fehler', 'CBR' in str(e) or 'rar' in str(e).lower(),
+    check('CBR without an unpacker reports an error', 'CBR' in str(e) or 'rar' in str(e).lower(),
           str(e)[:60])
 
 print('')
-print('Regressionen der Haertung')
+print('Hardening regressions')
 
-# 14 Ergebnis darf nie groesser sein als das Original - auch dann nicht,
-#    wenn dabei das Format wechselt (frueher nur bei gleichem Format geprueft).
+# 14 The result must never be larger than the original, not even when
+#    the format changes. This used to be checked only for equal formats.
 noise = Image.effect_noise((300, 300), 90).convert('RGB')
 small_jpeg = enc(noise, 'JPEG', quality=35)
 r = optimize_image(small_jpeg, P, png_to_jpeg='auto', quality=95)
-check('kein Ergebnis groesser als das Original',
+check('no result larger than the original',
       len(r.data) <= len(small_jpeg),
       '%d -> %d' % (len(small_jpeg), len(r.data)))
-check('verworfenes Ergebnis wird als "kein Gewinn" gemeldet',
-      r.changed or r.reason == 'kein Gewinn', r.reason)
+check('a discarded result is reported as "no gain"',
+      r.changed or r.reason == 'no gain', r.reason)
 
-# 15 Gleicher Dateiname in zwei Ordnern: Referenzen werden ueber den
-#    Basisnamen umgeschrieben, deshalb darf hier nicht konvertiert werden.
+# 15 Same file name in two folders: references are rewritten by base
+#    name, so no format conversion may happen here.
 big = Image.new('RGB', (1800, 2400), (200, 30, 30))
 for _y in range(0, 2400, 8):
     big.paste((30, 30, 200), (0, _y, 1800, _y + 4))
@@ -199,17 +199,17 @@ dup_out = os.path.join(tmp, 'dup_out.epub')
 rep = optimize_epub(dup, dup_out, P, png_to_jpeg=True)
 with zipfile.ZipFile(dup_out) as z:
     dnames = z.namelist()
-check('mehrdeutiger Bildname wird nicht umbenannt',
+check('ambiguous image name is not renamed',
       'OEBPS/a/bild.png' in dnames and 'OEBPS/b/bild.png' in dnames,
       str([n for n in dnames if 'bild' in n]))
-check('beide Bilder trotzdem optimiert', rep.images_changed == 2,
+check('both images optimised regardless', rep.images_changed == 2,
       str(rep.images_changed))
-check('Grund steht im Bericht',
-      any('mehrfach vergeben' in n for n in rep.notes), str(rep.notes[:1]))
+check('the reason appears in the report',
+      any('used more than once' in n for n in rep.notes), str(rep.notes[:1]))
 
-# 16 Eindeutiger Name wird weiterhin konvertiert, Referenz zieht mit
+# 16 An unambiguous name is still converted, and the reference follows
 uni = os.path.join(tmp, 'uni.epub')
-# Rauschen komprimiert als PNG schlecht, als JPEG gut - hier gewinnt JPEG.
+# Noise compresses badly as PNG and well as JPEG, so JPEG wins here.
 photo = enc(Image.effect_noise((1800, 2400), 60).convert('RGB'), 'PNG')
 with zipfile.ZipFile(uni, 'w') as z:
     z.writestr('mimetype', 'application/epub+zip')
@@ -220,10 +220,10 @@ rep = optimize_epub(uni, uni_out, P, png_to_jpeg=True)
 with zipfile.ZipFile(uni_out) as z:
     unames = z.namelist()
     html = z.read('OEBPS/t.xhtml').decode('utf-8')
-check('eindeutiger Name wird zu JPEG', 'OEBPS/x.jpg' in unames, str(unames))
-check('Referenz im XHTML mitgezogen',
+check('unambiguous name is converted to JPEG', 'OEBPS/x.jpg' in unames, str(unames))
+check('the XHTML reference follows along',
       'x.jpg' in html and 'x.png' not in html, html.strip()[:50])
 
-print('\n%s' % ('ALLE RANDFAELLE BESTANDEN' if not FAILS
-                else 'FEHLGESCHLAGEN: %s' % ', '.join(FAILS)))
+print('\n%s' % ('ALL EDGE CASES PASSED' if not FAILS
+                else 'FAILED: %s' % ', '.join(FAILS)))
 sys.exit(1 if FAILS else 0)

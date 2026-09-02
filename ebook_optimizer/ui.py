@@ -115,6 +115,14 @@ class EbookOptimizerAction(InterfaceAction):
     action_type = 'current'
 
     def genesis(self):
+        # get_icons is injected into plugin modules by calibre's zip
+        # loader; outside calibre (tests, the standalone package) the
+        # name simply does not exist, hence the guard.
+        try:
+            self.qaction.setIcon(
+                get_icons('images/icon.png', 'EBOOK-OPTIMIZER'))  # noqa: F821
+        except Exception:
+            pass
         self.qaction.triggered.connect(self.start)
 
     def start(self):

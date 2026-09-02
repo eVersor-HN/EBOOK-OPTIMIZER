@@ -4,6 +4,12 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.5 · 2026-09-02
+
+- **The toolbar button has an icon now** - the teal EO tile from the web interface - instead of
+  appearing as bare text next to calibre's other buttons. The build refuses to package a plugin
+  without it.
+
 ## 0.4.4 · 2026-09-02
 
 - **The plugin keeps the untouched original when it replaces a same-format file.** A calibre book

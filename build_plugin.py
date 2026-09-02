@@ -39,6 +39,7 @@ if __name__ == '__main__':
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
     assert '__init__.py' in names, '__init__.py missing at the ZIP root'
+    assert 'images/icon.png' in names, 'toolbar icon missing'
     assert 'plugin-import-name-ebook_optimizer.txt' in names, \
         'marker file missing'
     print('Structure ok:', ', '.join(sorted(names)))

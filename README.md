@@ -367,6 +367,7 @@ python make_testdata.py                          # generate synthetic fixtures
 python test_edge.py                              # edge cases
 python test_calibre_stub.py                      # plugin code against stand-in Calibre APIs
 python test_formats.py                           # every input and output format (needs Calibre)
+python test_devices.py                           # all 36 devices x optimisation, conversion, quality modes
 python verify.py out/book.epub out/comic.cbz 8   # structural integrity of written files
 ```
 

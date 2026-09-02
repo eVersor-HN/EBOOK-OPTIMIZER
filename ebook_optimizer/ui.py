@@ -75,6 +75,18 @@ def _run(book_ids, db, opts, log, abort, notifications):
                 continue
 
             if opts['add_as_format']:
+                # Same-format optimisation replaces the stored file, since
+                # a calibre book holds one file per format. Keep the
+                # untouched original as ORIGINAL_<FMT> first - calibre's
+                # own convention, restorable from the book's format menu.
+                # Only on the first run, or a second click would overwrite
+                # the true original with the once-optimised copy.
+                if out_fmt in fmts and 'ORIGINAL_' + out_fmt not in fmts:
+                    try:
+                        db.save_original_format(book_id, out_fmt)
+                    except Exception:
+                        log('%s: could not keep an original-format copy'
+                            % title)
                 with open(dst, 'rb') as f:
                     db.add_format(book_id, out_fmt, f, replace=True)
                 if opts['replace_original'] and src_fmt != out_fmt:

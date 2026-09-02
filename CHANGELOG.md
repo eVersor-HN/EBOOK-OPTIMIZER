@@ -4,6 +4,15 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.4 · 2026-09-02
+
+- **The plugin keeps the untouched original when it replaces a same-format file.** A calibre book
+  holds one file per format, so optimising an EPUB overwrote the stored EPUB - which the settings
+  text did not say. The original is now saved first as `ORIGINAL_EPUB` (calibre's own convention,
+  restorable from the book's format list), only on the first run so a second click cannot
+  overwrite the true original with an already-optimised copy. Verified working in a real
+  calibre 9.14: the button runs, the job completes, the summary shows.
+
 ## 0.4.3 · 2026-09-02
 
 - **The plugin's toolbar button no longer freezes calibre.** Calibre's `ThreadedJob` invokes the

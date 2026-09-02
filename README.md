@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.3.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.4.zip` — SHA-256:**
 
 ```
-81eb8322cbdbdd44fcc4f6b02bc9a69bd96e320d02b91b9d99628796cde71c32
+431ffc0b25b0fe719342b094d8fa443078202e3c19fef451df8f9403580f0661
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.3.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.4.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.3.zip    sha256sum EBOOK-OPTIMIZER-0.4.3.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.4.zip    sha256sum EBOOK-OPTIMIZER-0.4.4.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -170,7 +170,9 @@ python build_plugin.py
 
 In Calibre: *Preferences → Plugins → Load plugin from file* →
 `dist/EBOOK-OPTIMIZER-calibre-plugin.zip`, then restart. The plugin adds a toolbar button that
-optimises the selected books.
+optimises the selected books. When the optimised file replaces a same-format original, the
+untouched copy is kept as `ORIGINAL_EPUB` (or `ORIGINAL_CBZ`), restorable from the book's format
+list.
 
 ---
 

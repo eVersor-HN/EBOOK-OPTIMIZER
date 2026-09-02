@@ -130,7 +130,8 @@ class ConfigWidget(QWidget):
         root.addWidget(self.manga)
 
         self.add_as_format = QCheckBox(
-            'Add the result to the book as an extra format', self)
+            'Store the result on the book (same-format originals are kept '
+            'as ORIGINAL_EPUB etc.)', self)
         self.add_as_format.setChecked(bool(prefs['add_as_format']))
         root.addWidget(self.add_as_format)
 

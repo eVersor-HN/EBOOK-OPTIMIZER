@@ -247,12 +247,18 @@ class FakeDB(object):
         self.files = files          # book_id -> (FORMAT, pfad)
         self.added = []
         self.removed = []
+        self.originals = []         # (book_id, fmt) saved as ORIGINAL_
 
     def field_for(self, field, book_id):
         return 'Buch %d' % book_id if field == 'title' else None
 
     def formats(self, book_id):
-        return (self.files[book_id][0],)
+        fmts = [self.files[book_id][0]]
+        fmts += ['ORIGINAL_' + f for b, f in self.originals if b == book_id]
+        return tuple(fmts)
+
+    def save_original_format(self, book_id, fmt):
+        self.originals.append((book_id, fmt))
 
     def format(self, book_id, fmt):
         with open(self.files[book_id][1], 'rb') as f:
@@ -330,6 +336,13 @@ def test_job():
           str([(o, n) for _bid, _t, o, n in results]))
     check('no format deleted when input and output match',
           db.removed == [], str(db.removed))
+    check('same-format originals are saved as ORIGINAL_ first',
+          sorted(db.originals) == [(1, 'EPUB'), (2, 'CBZ')],
+          str(db.originals))
+    n_before = len(db.originals)
+    ui._run([1], db, opts, log_lines.append, FakeAbort(), q)
+    check('a second run does not overwrite the saved original',
+          len(db.originals) == n_before, str(db.originals))
 
     # The manga switch has to run through without error
     before = len(log_lines)

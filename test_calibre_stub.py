@@ -133,7 +133,19 @@ class ThreadedJob(object):
 
 _mod('calibre')
 _mod('calibre.customize', InterfaceActionBase=InterfaceActionBase)
+class Dispatcher(object):
+    """Stand-in for calibre's GUI-thread marshaller: remembers that the
+    callback was wrapped, then calls straight through."""
+
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *a, **kw):
+        return self.func(*a, **kw)
+
+
 _mod('calibre.gui2',
+     Dispatcher=Dispatcher,
      error_dialog=lambda *a, **kw: ('error', a),
      info_dialog=lambda *a, **kw: ('info', a))
 _mod('calibre.gui2.actions', InterfaceAction=InterfaceAction)
@@ -314,8 +326,8 @@ def test_job():
     check('comic written back as CBZ',
           any(f == 'CBZ' for _b, f, _n in db.added))
     check('result is smaller than the original',
-          all(new < old for _t, old, new in results),
-          str([(o, n) for _t, o, n in results]))
+          all(new < old for _bid, _t, old, new in results),
+          str([(o, n) for _bid, _t, o, n in results]))
     check('no format deleted when input and output match',
           db.removed == [], str(db.removed))
 
@@ -352,6 +364,15 @@ def test_action():
         library_view=types.SimpleNamespace(selectionModel=lambda: Sel()))
     check('an empty selection shows a notice instead of crashing',
           act.start()[0] == 'error')
+
+    # The completion callback MUST be marshalled onto the GUI thread.
+    # ThreadedJob calls it in the worker thread, and a Qt dialog built
+    # there freezes calibre - which is exactly what happened in a real
+    # calibre 9.14 before this was wrapped in Dispatcher.
+    import ebook_optimizer.ui as ui2
+    src = open(ui2.__file__, encoding='utf-8').read()
+    check('the done callback is wrapped in Dispatcher',
+          'Dispatcher(self.done)' in src)
 
 
 if __name__ == '__main__':

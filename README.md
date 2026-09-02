@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.2.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.4.3.zip` — SHA-256:**
 
 ```
-4a8f36792b7155b99f6e80bf7620c1636de7731955834ff213a3b0459eb5e136
+81eb8322cbdbdd44fcc4f6b02bc9a69bd96e320d02b91b9d99628796cde71c32
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.2.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.4.3.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.2.zip    sha256sum EBOOK-OPTIMIZER-0.4.2.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.4.3.zip    sha256sum EBOOK-OPTIMIZER-0.4.3.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not

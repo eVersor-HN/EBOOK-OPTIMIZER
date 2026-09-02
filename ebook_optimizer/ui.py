@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import traceback
 
-from calibre.gui2 import error_dialog, info_dialog
+from calibre.gui2 import Dispatcher, error_dialog, info_dialog
 from calibre.gui2.actions import InterfaceAction
 from calibre.gui2.threaded_jobs import ThreadedJob
 
@@ -84,7 +84,7 @@ def _run(book_ids, db, opts, log, abort, notifications):
                         log('%s: could not remove the original format'
                             % title)
 
-            results.append((title, rep.old_size, rep.new_size))
+            results.append((book_id, title, rep.old_size, rep.new_size))
             log('%s: %s -> %s (-%.1f%%)'
                 % (title, human_size(rep.old_size), human_size(rep.new_size),
                    pct_saved(rep.old_size, rep.new_size)))
@@ -121,9 +121,13 @@ class EbookOptimizerAction(InterfaceAction):
         opts['target_error'] = effective_target_error()
         opts['quantize'] = effective_quantize()
 
+        # ThreadedJob invokes the callback in the WORKER thread (see
+        # calibre gui2/threaded_jobs.py, start_work). Building Qt dialogs
+        # there freezes the interface, so the callback goes through
+        # Dispatcher, which re-emits the call on the GUI thread.
         job = ThreadedJob(
             'ebook_optimizer', 'Optimizing %d book(s)' % len(book_ids),
-            _run, (book_ids, db, opts), {}, self.done)
+            _run, (book_ids, db, opts), {}, Dispatcher(self.done))
         self.gui.job_manager.run_threaded_job(job)
         self.gui.status_bar.show_message('Optimization started', 3000)
 
@@ -134,15 +138,19 @@ class EbookOptimizerAction(InterfaceAction):
         if not results:
             return info_dialog(self.gui, 'Finished',
                                'No file could be made smaller.', show=True)
-        old = sum(r[1] for r in results)
-        new = sum(r[2] for r in results)
+        old = sum(r[2] for r in results)
+        new = sum(r[3] for r in results)
         lines = ['%s: %s -> %s' % (t, human_size(o), human_size(n))
-                 for t, o, n in results[:20]]
+                 for _bid, t, o, n in results[:20]]
         if len(results) > 20:
             lines.append('... and %d more' % (len(results) - 20))
         msg = ('%d file(s) optimized.\nSaved: %s (%.1f%%)\n\n%s'
                % (len(results), human_size(old - new), pct_saved(old, new),
                   '\n'.join(lines)))
-        self.gui.library_view.model().refresh_ids(
-            [], current_row=self.gui.library_view.currentIndex().row())
+        # Refresh the changed rows so the size column updates.
+        try:
+            self.gui.library_view.model().refresh_ids(
+                [r[0] for r in results])
+        except Exception:
+            pass
         info_dialog(self.gui, 'EBOOK-OPTIMIZER', msg, show=True)

@@ -4,6 +4,16 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.4.3 · 2026-09-02
+
+- **The plugin's toolbar button no longer freezes calibre.** Calibre's `ThreadedJob` invokes the
+  completion callback in the worker thread, and our callback built the results dialog there -
+  Qt widgets from a non-GUI thread, which is exactly the empty, unresponsive window that showed
+  up on the first real run. The callback now goes through calibre's `Dispatcher`, which re-emits
+  it on the GUI thread. The optimisation itself had already worked; only the summary froze.
+- The book list now refreshes the actually changed rows after a run, so the size column updates.
+- A test pins the Dispatcher wrapping, so this cannot quietly regress.
+
 ## 0.4.2 · 2026-09-02
 
 - **The Calibre plugin is confirmed to load in a real Calibre** (9.14, Windows). Until now that

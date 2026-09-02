@@ -9,6 +9,7 @@ Start:  python -m ebook_optimizer.web
 import json
 import mimetypes
 import os
+import shutil
 import string
 import subprocess
 import sys
@@ -283,10 +284,14 @@ def _worker(job_id, files, opts):
             grew = res.new_size >= res.old_size and fmt == ext.lstrip('.')
             if grew:
                 os.remove(tmp)
+                # Keep the output tree complete: the untouched original
+                # goes in when nothing could be gained.
+                shutil.copyfile(src, dst)
                 job['results'].append({
                     'name': f['name'], 'old': res.old_size,
                     'new': res.old_size, 'pct': 0.0, 'skipped': True,
-                    'detail': 'no gain, original kept'})
+                    'detail': 'no gain, original copied unchanged',
+                    'out': dst})
             else:
                 os.replace(tmp, dst)
                 job['results'].append({

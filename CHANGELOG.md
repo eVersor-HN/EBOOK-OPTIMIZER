@@ -4,6 +4,16 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.5.1 · 2026-09-02
+
+- **The output tree is complete now.** When a file could not be made smaller, nothing used to be
+  written - correct for in-place runs, but a mirrored output folder ended up with holes: 110 of
+  586 books were missing after a real corpus run. With an output folder, the untouched original
+  is now copied in, so the result is a complete library of its own. `--in-place` behaviour is
+  unchanged.
+- **`--only-ext`** limits a folder scan to the given extensions - optimising just the EPUBs in a
+  folder that also holds a thousand scanned PDFs was the motivating case.
+
 ## 0.5.0 · 2026-09-02
 
 Built for real collections, prompted by a 38 GB corpus of historical books.

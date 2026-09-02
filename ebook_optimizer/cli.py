@@ -8,6 +8,7 @@ Examples:
 
 import argparse
 import os
+import shutil
 import sys
 import tempfile
 import traceback
@@ -375,9 +376,15 @@ def main(argv=None):
             continue
 
         if rep.new_size >= rep.old_size and fmt == ext.lstrip('.'):
-            print('      -> no gain, original kept')
             os.remove(tmp)
             total_new = total_new - rep.new_size + rep.old_size
+            if args.in_place:
+                print('      -> no gain, original kept')
+            else:
+                # The output tree should be complete and usable as a
+                # library of its own, so the untouched original goes in.
+                shutil.copyfile(src, dst_final)
+                print('      -> no gain, original copied unchanged')
             continue
 
         if args.in_place:

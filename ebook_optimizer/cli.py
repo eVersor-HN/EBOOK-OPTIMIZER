@@ -32,6 +32,11 @@ SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
                  '.md', '.markdown', '.textile', '.opf', '.recipe',
                  '.zip', '.rar', '.shtm', '.shtml'}
 
+# Folders we write into ourselves. Without this a second recursive run
+# would pick up its own output and optimise it all over again.
+# 'optimiert' is the name earlier versions used.
+OUTPUT_DIR_NAMES = {'optimized', 'optimiert'}
+
 
 def all_ext(scanning=False):
     ext = set(NATIVE_EXT)
@@ -42,14 +47,21 @@ def all_ext(scanning=False):
     return ext
 
 
-def collect(paths, recursive):
+def collect(paths, recursive, out_dir=None):
     exts = all_ext(scanning=True)
     named = all_ext()
+    skip_dir = os.path.normcase(os.path.abspath(out_dir)) if out_dir else None
     out = []
     for p in paths:
         if os.path.isdir(p):
             if recursive:
-                for root, _d, files in os.walk(p):
+                for root, dirs, files in os.walk(p):
+                    dirs[:] = [
+                        d for d in dirs
+                        if d.lower() not in OUTPUT_DIR_NAMES
+                        and os.path.normcase(
+                            os.path.abspath(os.path.join(root, d)))
+                        != skip_dir]
                     for fn in sorted(files):
                         if ext_of(fn) in exts:
                             out.append(os.path.join(root, fn))
@@ -215,7 +227,7 @@ def main(argv=None):
               file=sys.stderr)
         return 2
 
-    files = collect(args.paths, args.recursive)
+    files = collect(args.paths, args.recursive, args.out_dir)
     if not files:
         print('No matching files found.')
         return 1

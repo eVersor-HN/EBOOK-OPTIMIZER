@@ -224,6 +224,36 @@ check('unambiguous name is converted to JPEG', 'OEBPS/x.jpg' in unames, str(unam
 check('the XHTML reference follows along',
       'x.jpg' in html and 'x.png' not in html, html.strip()[:50])
 
+print('')
+print('Folder scanning')
+
+# 17 A second recursive run must not eat its own output. The default
+#    output folder sits inside the scanned tree, so it has to be pruned.
+from ebook_optimizer.cli import collect  # noqa: E402
+
+scan_root = os.path.join(tmp, 'library')
+os.makedirs(os.path.join(scan_root, 'optimized'), exist_ok=True)
+os.makedirs(os.path.join(scan_root, 'sub'), exist_ok=True)
+for rel in ('book.epub', 'sub/deep.epub', 'optimized/book.epub'):
+    with zipfile.ZipFile(os.path.join(scan_root, rel), 'w') as z:
+        z.writestr('mimetype', 'application/epub+zip')
+found = [os.path.relpath(f, scan_root).replace(os.sep, '/')
+         for f in collect([scan_root], recursive=True)]
+check('output folder is skipped when scanning',
+      'optimized/book.epub' not in found, str(found))
+check('sub-folders are still walked', 'sub/deep.epub' in found, str(found))
+
+# A folder named as the explicit --out-dir is skipped too
+other = os.path.join(tmp, 'elsewhere')
+os.makedirs(other, exist_ok=True)
+with zipfile.ZipFile(os.path.join(scan_root, 'sub', 'x.epub'), 'w') as z:
+    z.writestr('mimetype', 'application/epub+zip')
+found2 = [os.path.relpath(f, scan_root).replace(os.sep, '/')
+          for f in collect([scan_root], recursive=True,
+                           out_dir=os.path.join(scan_root, 'sub'))]
+check('explicit output folder is skipped as well',
+      not any(f.startswith('sub/') for f in found2), str(found2))
+
 print('\n%s' % ('ALL EDGE CASES PASSED' if not FAILS
                 else 'FAILED: %s' % ', '.join(FAILS)))
 sys.exit(1 if FAILS else 0)

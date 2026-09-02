@@ -37,6 +37,10 @@ SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
                  '.md', '.markdown', '.textile', '.opf', '.recipe',
                  '.zip', '.rar', '.shtm', '.shtml'}
 
+# Folders we write into ourselves, skipped when walking so a second run
+# does not re-optimise its own output.
+OUTPUT_DIR_NAMES = {'optimized', 'optimiert'}
+
 # Running and finished jobs.
 _jobs = {}
 
@@ -132,7 +136,9 @@ def scan(paths, recursive):
                 found.append(p)
         elif os.path.isdir(p):
             if recursive:
-                for root, _d, files in os.walk(p):
+                for root, dirs, files in os.walk(p):
+                    dirs[:] = [d for d in dirs
+                               if d.lower() not in OUTPUT_DIR_NAMES]
                     for fn in sorted(files):
                         if ext_of(fn) in exts:
                             found.append(os.path.join(root, fn))

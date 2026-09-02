@@ -4,6 +4,12 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.3.1 · 2026-09-02
+
+- A second recursive run no longer picks up its own output. The default `optimized` folder sits
+  inside the folder you scanned, so the first run's results were being optimised all over again.
+  Output folders are now skipped when walking, including one named explicitly with `--out-dir`.
+
 ## 0.3.0 · 2026-09-02
 
 - The whole tool is now in English: interface, command line, messages and source.

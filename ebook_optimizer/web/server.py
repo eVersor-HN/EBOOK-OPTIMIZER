@@ -198,7 +198,7 @@ def scan(paths, recursive):
     for p in paths:
         if os.path.isfile(p):
             if ext_of(p) in exts:
-                found.append(p)
+                found.append((p, None))
         elif os.path.isdir(p):
             if _is_calibre_library(p):
                 raise ValueError(
@@ -216,19 +216,19 @@ def scan(paths, recursive):
                                if d.lower() not in OUTPUT_DIR_NAMES]
                     for fn in sorted(files):
                         if ext_of(fn) in exts:
-                            found.append(os.path.join(root, fn))
+                            found.append((os.path.join(root, fn), p))
             else:
                 for fn in sorted(os.listdir(p)):
                     full = os.path.join(p, fn)
                     if os.path.isfile(full) and ext_of(fn) in exts:
-                        found.append(full)
+                        found.append((full, p))
     out, seen = [], set()
-    for f in found:
+    for f, root in found:
         k = os.path.normcase(os.path.abspath(f))
         if k not in seen:
             seen.add(k)
             out.append({'path': f, 'name': os.path.basename(f),
-                        'size': os.path.getsize(f)})
+                        'size': os.path.getsize(f), 'root': root})
     return out
 
 
@@ -253,6 +253,12 @@ def _worker(job_id, files, opts):
         fmt = target_fmt or ('cbz' if ext in COMIC_EXT else ext.lstrip('.'))
         stem = os.path.splitext(os.path.basename(src))[0]
         d = out_dir or os.path.join(os.path.dirname(src), 'optimized')
+        if out_dir and f.get('root'):
+            # Mirror the scanned folder's structure, or files from
+            # different sub-folders would collide by name.
+            rel = os.path.relpath(os.path.dirname(src), f['root'])
+            if rel != '.':
+                d = os.path.join(out_dir, rel)
         try:
             os.makedirs(d, exist_ok=True)
             dst = os.path.join(d, target_name(stem, fmt))

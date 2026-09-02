@@ -8,7 +8,7 @@ The Calibre import is guarded on purpose so the command line runs
 without Calibre installed.
 """
 
-__version_tuple__ = (0, 4, 6)
+__version_tuple__ = (0, 5, 0)
 __version__ = '.'.join(str(x) for x in __version_tuple__)
 
 try:

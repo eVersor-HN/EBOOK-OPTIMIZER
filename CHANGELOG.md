@@ -4,6 +4,17 @@ Built forward. Tracked clearly. Newest first.
 
 ---
 
+## 0.5.0 · 2026-09-02
+
+Built for real collections, prompted by a 38 GB corpus of historical books.
+
+- **The output mirrors the scanned folder structure.** `-o` with `-r` used to flatten every file
+  into one directory, so two books named the same in different sub-folders collided. Both the
+  command line and the web interface now recreate the source tree below the output folder.
+- **`--include-ext`** adds extensions to a folder scan that are skipped by default. Plain-text
+  books are the reason: `.txt` is normally ignored so a scan does not convert every stray note,
+  but for a corpus of `.txt` books, `--include-ext txt` picks them up.
+
 ## 0.4.6 · 2026-09-02
 
 - **Calibre libraries are protected from direct scanning.** Pointing the folder scanner at a

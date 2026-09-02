@@ -192,9 +192,9 @@ os.makedirs(os.path.join(lib, 'Author', 'Book'), exist_ok=True)
 open(os.path.join(lib, 'metadata.db'), 'wb').write(b'sqlite fake')
 with zipfile.ZipFile(os.path.join(lib, 'Author', 'Book', 'b.epub'), 'w') as z:
     z.writestr('mimetype', 'application/epub+zip')
-found = collect([lib], recursive=True)
+found = [f for f, _r in collect([lib], recursive=True)]
 check('a calibre library is skipped when scanning', found == [], str(found))
-found = collect([os.path.dirname(lib)], recursive=True)
+found = [f for f, _r in collect([os.path.dirname(lib)], recursive=True)]
 check('a library nested in a scanned tree is skipped too',
       not any('Calibre Library' in f for f in found),
       str([f for f in found if 'Calibre Library' in f]))
@@ -284,7 +284,7 @@ for rel in ('book.epub', 'sub/deep.epub', 'optimized/book.epub'):
     with zipfile.ZipFile(os.path.join(scan_root, rel), 'w') as z:
         z.writestr('mimetype', 'application/epub+zip')
 found = [os.path.relpath(f, scan_root).replace(os.sep, '/')
-         for f in collect([scan_root], recursive=True)]
+         for f, _r in collect([scan_root], recursive=True)]
 check('output folder is skipped when scanning',
       'optimized/book.epub' not in found, str(found))
 check('sub-folders are still walked', 'sub/deep.epub' in found, str(found))
@@ -295,8 +295,8 @@ os.makedirs(other, exist_ok=True)
 with zipfile.ZipFile(os.path.join(scan_root, 'sub', 'x.epub'), 'w') as z:
     z.writestr('mimetype', 'application/epub+zip')
 found2 = [os.path.relpath(f, scan_root).replace(os.sep, '/')
-          for f in collect([scan_root], recursive=True,
-                           out_dir=os.path.join(scan_root, 'sub'))]
+          for f, _r in collect([scan_root], recursive=True,
+                               out_dir=os.path.join(scan_root, 'sub'))]
 check('explicit output folder is skipped as well',
       not any(f.startswith('sub/') for f in found2), str(found2))
 

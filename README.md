@@ -101,20 +101,20 @@ own configuration and survive an update.
 The same hash appears in three places and must match byte-for-byte: the release notes, this
 README, and [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-**`EBOOK-OPTIMIZER-0.4.6.zip` — SHA-256:**
+**`EBOOK-OPTIMIZER-0.5.0.zip` — SHA-256:**
 
 ```
-8868ad0f1721965c0f67d2f2c058e0cc86329badf14d922f97e0e077e3fc329f
+2630ec8bc2535fed26ffedaf7c902710d38785441d0c018c6dd7a4671eee6b33
 ```
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\EBOOK-OPTIMIZER-0.4.6.zip -Algorithm SHA256
+Get-FileHash .\EBOOK-OPTIMIZER-0.5.0.zip -Algorithm SHA256
 ```
 
 ```bash
 # macOS                                    # Linux
-shasum -a 256 EBOOK-OPTIMIZER-0.4.6.zip    sha256sum EBOOK-OPTIMIZER-0.4.6.zip
+shasum -a 256 EBOOK-OPTIMIZER-0.5.0.zip    sha256sum EBOOK-OPTIMIZER-0.5.0.zip
 ```
 
 The printed hash must match, case-insensitive. If it does not, do not use the file — it is not
@@ -306,7 +306,8 @@ formats, delegated to Calibre's `ebook-convert`. The order of operations is deli
 | `-c, --target` | `identical` (default) or `smaller` — how the result should look |
 | `-t, --to` | Output format — `epub`, `kepub`, `azw3`, `mobi`, `pdf`, `cbz`, … |
 | `-q, --quality` | Pin a fixed JPEG quality and switch the per-image measurement off |
-| `-r, --recursive` | Walk sub-folders |
+| `-r, --recursive` | Walk sub-folders; with `-o` the output mirrors the source tree |
+| `--include-ext` | Also scan extensions skipped by default, e.g. `--include-ext txt` |
 | `-o, --out-dir` | Output folder (default: `optimiert` beside the source) |
 | `-j, --jobs` | Parallel workers (default: core count, capped at 8) |
 | `--in-place` | Replace originals, keeping numbered `.bak` backups |

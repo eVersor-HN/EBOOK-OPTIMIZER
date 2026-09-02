@@ -38,12 +38,13 @@ SCAN_SKIP_EXT = {'.txt', '.text', '.htm', '.html', '.xhtm', '.xhtml',
 OUTPUT_DIR_NAMES = {'optimized', 'optimiert'}
 
 
-def all_ext(scanning=False):
+def all_ext(scanning=False, include=()):
     ext = set(NATIVE_EXT)
     if conv.available():
         ext |= {'.' + f for f in conv.input_formats()}
     if scanning:
         ext -= SCAN_SKIP_EXT
+        ext |= {'.' + e.lstrip('.').lower() for e in include}
     return ext
 
 
@@ -58,8 +59,12 @@ def is_calibre_library(path):
     return os.path.isfile(os.path.join(path, 'metadata.db'))
 
 
-def collect(paths, recursive, out_dir=None):
-    exts = all_ext(scanning=True)
+def collect(paths, recursive, out_dir=None, include=()):
+    """Returns (path, root) pairs; root is the scanned folder the file
+    came from, or None for a file named explicitly. The root lets the
+    output mirror the folder structure instead of flattening thousands
+    of files into one directory."""
+    exts = all_ext(scanning=True, include=include)
     named = all_ext()
     skip_dir = os.path.normcase(os.path.abspath(out_dir)) if out_dir else None
     out = []
@@ -85,15 +90,15 @@ def collect(paths, recursive, out_dir=None):
                         != skip_dir]
                     for fn in sorted(files):
                         if ext_of(fn) in exts:
-                            out.append(os.path.join(root, fn))
+                            out.append((os.path.join(root, fn), p))
             else:
                 for fn in sorted(os.listdir(p)):
                     full = os.path.join(p, fn)
                     if os.path.isfile(full) and ext_of(fn) in exts:
-                        out.append(full)
+                        out.append((full, p))
         elif os.path.isfile(p):
             if ext_of(p) in named:
-                out.append(p)
+                out.append((p, None))
             else:
                 print('Skipped, unknown format: %s' % p, file=sys.stderr)
         else:
@@ -101,11 +106,20 @@ def collect(paths, recursive, out_dir=None):
     return out
 
 
-def target_path(src, args, fmt):
+def target_path(src, args, fmt, root=None):
     stem = os.path.splitext(os.path.basename(src))[0]
     if args.in_place:
         return os.path.join(os.path.dirname(src), target_name(stem, fmt))
-    out_dir = args.out_dir or os.path.join(os.path.dirname(src), 'optimized')
+    if args.out_dir:
+        out_dir = args.out_dir
+        if root:
+            # Mirror the scanned folder's structure, or thousands of
+            # files from different sub-folders would collide by name.
+            rel = os.path.relpath(os.path.dirname(src), root)
+            if rel != '.':
+                out_dir = os.path.join(out_dir, rel)
+    else:
+        out_dir = os.path.join(os.path.dirname(src), 'optimized')
     if not args.dry_run:
         os.makedirs(out_dir, exist_ok=True)
     return os.path.join(out_dir, target_name(stem + args.suffix, fmt))
@@ -138,6 +152,12 @@ def build_parser():
                          'measurement off')
     ap.add_argument('-r', '--recursive', action='store_true',
                     help='walk sub-folders')
+    ap.add_argument('--include-ext', metavar='EXT[,EXT]', default='',
+                    help='also pick these extensions up when scanning '
+                         'folders. txt, html and friends are skipped by '
+                         'default so a scan does not convert every stray '
+                         'note; for a corpus of .txt books, pass '
+                         '--include-ext txt.')
     ap.add_argument('-o', '--out-dir',
                     help='output folder (default: ./optimized)')
     ap.add_argument('--suffix', default='', help='suffix for output files')
@@ -267,7 +287,9 @@ def main(argv=None):
                   file=sys.stderr)
             return 2
 
-    files = collect(args.paths, args.recursive, args.out_dir)
+    include = [e for e in args.include_ext.split(',') if e.strip()]
+    files = collect(args.paths, args.recursive, args.out_dir,
+                    include=include)
     if not files:
         print('No matching files found.')
         return 1
@@ -292,10 +314,10 @@ def main(argv=None):
     force_gray = False if args.keep_color else None
     png_mode = {'keep': False, 'auto': 'auto', 'jpeg': True}[args.png_mode]
 
-    for src in files:
+    for src, src_root in files:
         ext = ext_of(src)
         fmt = target_fmt or ('cbz' if ext in COMIC_EXT else ext.lstrip('.'))
-        dst_final = target_path(src, args, fmt)
+        dst_final = target_path(src, args, fmt, src_root)
         if args.dry_run:
             fd, tmp = tempfile.mkstemp(prefix='ebook_opt_probe_',
                                        suffix='.' + fmt)
